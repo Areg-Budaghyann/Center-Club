@@ -32,13 +32,10 @@ from telegram.ext import (
 
 from config import ADMIN_IDS
 from database import create_recurring_bookings
-from handlers.booking import (
-    MONTH_NAMES,
-    WEEKDAY_HEADERS,
-    DEFAULT_LANG,
-    get_text,
-    _lang,
-)
+from translations import get_text, MONTH_NAMES, WEEKDAY_NAMES, DEFAULT_LANG
+from handlers.booking import _lang
+
+WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 
 logger = logging.getLogger(__name__)
 
@@ -54,11 +51,7 @@ RECURRING_END_DISPLAY   = "23:00"
 RECURRING_DURATION  = 4         # hours (19:00–23:00 covers the 19:30 slot safely)
 RECURRING_WEEKDAY   = 2         # 0=Mon … 6=Sun  →  2 = Wednesday
 
-WEEKDAY_LABELS = {
-    "en": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
-    "ru": ["Понедельник","Вторник","Среда","Четверг","Пятница","Суббота","Воскресенье"],
-    "hy": ["Երկուշաբթի","Երեքշաբթի","Չորեքշաբթի","Հինգշաբթի","Ուրբաթ","Շաբաթ","Կիրակի"],
-}
+
 
 # ConversationHandler states
 (
@@ -157,7 +150,7 @@ async def recurring_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update.message.reply_text("⛔ You don't have permission to use this command.")
         return ConversationHandler.END
 
-    wd_name = WEEKDAY_LABELS[lang][RECURRING_WEEKDAY]
+    wd_name = WEEKDAY_NAMES[lang][RECURRING_WEEKDAY]
 
     await update.message.reply_text(
         f"📅 *Recurring booking*\n\n"
@@ -239,7 +232,7 @@ async def pick_to_day(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     context.user_data["rec_to_date"] = chosen
 
     from_date = context.user_data["rec_from_date"]
-    wd_name   = WEEKDAY_LABELS[lang][RECURRING_WEEKDAY]
+    wd_name   = WEEKDAY_NAMES[lang][RECURRING_WEEKDAY]
 
     await query.edit_message_text(
         f"📅 *{from_date}* → *{chosen}*\n"
@@ -265,7 +258,7 @@ async def enter_rec_title(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     context.user_data["rec_title"] = title
     from_date = context.user_data["rec_from_date"]
     to_date   = context.user_data["rec_to_date"]
-    wd_name   = WEEKDAY_LABELS[lang][RECURRING_WEEKDAY]
+    wd_name   = WEEKDAY_NAMES[lang][RECURRING_WEEKDAY]
 
     # Count how many Wednesdays are in the range
     from datetime import date as _date, timedelta

@@ -29,6 +29,7 @@ from telegram.ext import (
     filters,
 )
 
+from translations import get_text, MONTH_NAMES, WEEKDAY_NAMES, DEFAULT_LANG, T as TEXTS
 from config import (
     GROUP_CHAT_ID,
     MAX_DURATION_HOURS,
@@ -53,103 +54,11 @@ logger = logging.getLogger(__name__)
 # Access via: get_text(lang, "key")
 # ===========================================================================
 
-TEXTS: dict[str, dict[str, str]] = {
-    "en": {
-        "start_message":       "👋 *Office Booking Bot*\n\nReserve a time slot in our shared office.\nWhat would you like to do?",
-        "choose_language":     "🌐 Choose your language:",
-        "book_office":         "📅 Book office",
-        "choose_month":        "📅 *Step 1 of 4 — Choose a month:*",
-        "choose_day":          "📅 *{month}* — choose a day:",
-        "choose_time":         "📅 {date}\n\n🕐 *Step 2 of 4 — Choose start time:*",
-        "choose_duration":     "📅 {date}  |  🕐 {hour}:00\n\n⏱ *Step 3 of 4 — Choose duration:*",
-        "enter_title":         "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}h\n\n✏️ *Step 4 of 4 — Enter event title:*\n\n_Type the name of your event (e.g. Board Games, Team Meeting)_",
-        "enter_title_again":   "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}h\n\n✏️ *Step 4 of 4 — Enter event title:*\n\n_Type the name of your event_",
-        "confirm_preview":     "✅ *Confirm your booking:*\n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}h)\n👤 @{user}",
-        "booking_confirmed":   "🎉 *Booking confirmed!*\n\n{details}",
-        "booking_conflict":    "❌ *Time slot already booked!*\n\nThis time overlaps with:\n\n🕐 {start} – {end}\n📋 *{title}*\n👤 @{user}\n\nPlease choose a different time.",
-        "booking_cancelled":   "Booking cancelled.",
-        "no_bookings_today":   "📭 No bookings for this day.",
-        "slot_taken_alert":    "⛔ This hour is already booked.",
-        "title_too_long":      "Title is too long ({length} chars). Max 80 characters — please shorten it.",
-        "title_empty":         "Please enter a title for your event.",
-        "back_button":         "←  Back",
-        "cancel_button":       "✖  Cancel",
-        "confirm_button":      "✅  Confirm",
-        "menu_button":         "←  Menu",
-        "change_title_button": "←  Change title",
-        "error_message":       "Something went wrong. Please try again.",
-        "past_day_alert":      "That day is already in the past.",
-        "group_notification":  "📢 *New office booking*\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 *{title}*\n👤 Organiser: @{user}",
-    },
-    "ru": {
-        "start_message":       "👋 *Бот бронирования офиса*\n\nЗабронируйте время в нашем общем офисе.\nЧто вы хотите сделать?",
-        "choose_language":     "🌐 Выберите язык:",
-        "book_office":         "📅 Забронировать офис",
-        "choose_month":        "📅 *Шаг 1 из 4 — Выберите месяц:*",
-        "choose_day":          "📅 *{month}* — выберите день:",
-        "choose_time":         "📅 {date}\n\n🕐 *Шаг 2 из 4 — Выберите время начала:*",
-        "choose_duration":     "📅 {date}  |  🕐 {hour}:00\n\n⏱ *Шаг 3 из 4 — Выберите длительность:*",
-        "enter_title":         "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ч\n\n✏️ *Шаг 4 из 4 — Введите название события:*\n\n_Например: Настольные игры, Встреча команды_",
-        "enter_title_again":   "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ч\n\n✏️ *Шаг 4 из 4 — Введите название события:*\n\n_Введите название_",
-        "confirm_preview":     "✅ *Подтвердите бронирование:*\n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}ч)\n👤 @{user}",
-        "booking_confirmed":   "🎉 *Бронирование подтверждено!*\n\n{details}",
-        "booking_conflict":    "❌ *Это время уже занято!*\n\nПересечение с существующей записью:\n\n🕐 {start} – {end}\n📋 *{title}*\n👤 @{user}\n\nПожалуйста, выберите другое время.",
-        "booking_cancelled":   "Бронирование отменено.",
-        "no_bookings_today":   "📭 На этот день бронирований нет.",
-        "slot_taken_alert":    "⛔ Этот час уже занят.",
-        "title_too_long":      "Название слишком длинное ({length} символов). Максимум 80 — сократите, пожалуйста.",
-        "title_empty":         "Пожалуйста, введите название события.",
-        "back_button":         "←  Назад",
-        "cancel_button":       "✖  Отмена",
-        "confirm_button":      "✅  Подтвердить",
-        "menu_button":         "←  Меню",
-        "change_title_button": "←  Изменить название",
-        "error_message":       "Что-то пошло не так. Попробуйте ещё раз.",
-        "past_day_alert":      "Этот день уже прошёл.",
-        "group_notification":  "📢 *Новое бронирование офиса*\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 *{title}*\n👤 Организатор: @{user}",
-    },
-    "hy": {
-        "start_message":       "👋 *Օֆիսի ամրագրման բոտ*\n\nՊահպանեք ժամաֆաիկ մեր ընդհանուր օֆիսում։\nԻնչ կցանկանայի՞ք անել:",
-        "choose_language":     "🌐 Ընտրեք լեզուն:",
-        "book_office":         "📅 Ամրագրել օֆիս",
-        "choose_month":        "📅 *Քայլ 1 4-ից — Ընտրեք ամիսը:*",
-        "choose_day":          "📅 *{month}* — ընտրեք օրը:",
-        "choose_time":         "📅 {date}\n\n🕐 *Քայլ 2 4-ից — Ընտրեք մեկնարկի ժամը:*",
-        "choose_duration":     "📅 {date}  |  🕐 {hour}:00\n\n⏱ *Քայլ 3 4-ից — Ընտրեք տևողությունը:*",
-        "enter_title":         "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ժ\n\n✏️ *Քայլ 4 4-ից — Մուտքագրեք միջոցառման անունը:*\n\n_Օրինակ՝ Սեղանի խաղեր, Թիմային հանդիպում_",
-        "enter_title_again":   "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ժ\n\n✏️ *Քայլ 4 4-ից — Մուտքագրեք միջոցառման անունը:*\n\n_Մուտքագրեք անունը_",
-        "confirm_preview":     "✅ *Հաստատե՞լ ամրագրումը:*\n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}ժ)\n👤 @{user}",
-        "booking_confirmed":   "🎉 *Ամրագրումը հաստատված է!*\n\n{details}",
-        "booking_conflict":    "❌ *Այս ժամը արդեն զբաղված է!*\n\nՀատվածություն կա հետևյալ ամրագրման հետ.\n\n🕐 {start} – {end}\n📋 *{title}*\n👤 @{user}\n\nԽնդրում ենք ընտրել այլ ժամ։",
-        "booking_cancelled":   "Ամրագրումը չեղարկված է։",
-        "no_bookings_today":   "📭 Այս օրվա համար ամրագրումներ չկան։",
-        "slot_taken_alert":    "⛔ Այս ժամը արդեն զբաղված է։",
-        "title_too_long":      "Անունը շատ երկար է ({length} նիշ)։ Առավելագույնը 80 նիշ։",
-        "title_empty":         "Խնդրում ենք մուտքագրել միջոցառման անունը։",
-        "back_button":         "←  Հետ",
-        "cancel_button":       "✖  Չեղարկել",
-        "confirm_button":      "✅  Հաստատել",
-        "menu_button":         "←  Մենյու",
-        "change_title_button": "←  Փոխել անունը",
-        "error_message":       "Ինչ-որ բան սխալ գնաց։ Խնդրում ենք փորձել կրկին։",
-        "past_day_alert":      "Այդ օրն արդեն անցել է։",
-        "group_notification":  "📢 *Օֆիսի նոր ամրագրում*\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 *{title}*\n👤 Կազմակերպիչ: @{user}",
-    },
-}
 
 # Month names per language (used in month/day grid headers)
-MONTH_NAMES: dict[str, list[str]] = {
-    "en": ["January","February","March","April","May","June",
-           "July","August","September","October","November","December"],
-    "ru": ["Январь","Февраль","Март","Апрель","Май","Июнь",
-           "Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"],
-    "hy": ["Հունվար","Փետրվար","Մարտ","Ապրիլ","Մայիս","Հունիս",
-           "Հուլիս","Օգոստոս","Սեպտեմբեր","Հոկտեմբեր","Նոյեմբեր","Դեկտեմբեր"],
-}
 
 WEEKDAY_HEADERS: list[str] = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 
-DEFAULT_LANG = "en"
 
 
 # ===========================================================================

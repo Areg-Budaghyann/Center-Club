@@ -9,13 +9,14 @@ from datetime import date, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
 
+from translations import get_text, DEFAULT_LANG
 from services.schedule_service import (
     build_weekly_schedule,
     build_monthly_schedule,
     format_free_slots,
 )
 
-_BACK = [[InlineKeyboardButton("← Menu", callback_data="menu")]]
+_BACK = [[InlineKeyboardButton(get_text(lang, "btn_menu"), callback_data="menu")]]
 
 
 # ── Schedule entry ────────────────────────────────────────────────────────────
@@ -23,19 +24,20 @@ _BACK = [[InlineKeyboardButton("← Menu", callback_data="menu")]]
 async def schedule_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
+    lang = context.user_data.get("lang", DEFAULT_LANG)
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("📅 This week",  callback_data="sched:week:0"),
-            InlineKeyboardButton("Next week",     callback_data="sched:week:1"),
+            InlineKeyboardButton(get_text(lang, "btn_this_week"),  callback_data="sched:week:0"),
+            InlineKeyboardButton(get_text(lang, "btn_next_week"),     callback_data="sched:week:1"),
         ],
         [
-            InlineKeyboardButton("📆 This month", callback_data="sched:month:0"),
-            InlineKeyboardButton("Next month",    callback_data="sched:month:1"),
+            InlineKeyboardButton(get_text(lang, "btn_this_month"), callback_data="sched:month:0"),
+            InlineKeyboardButton(get_text(lang, "btn_next_month"),    callback_data="sched:month:1"),
         ],
-        [InlineKeyboardButton("← Menu", callback_data="menu")],
+        [InlineKeyboardButton(get_text(lang, "btn_menu"), callback_data="menu")],
     ])
     await query.edit_message_text(
-        "📊 *View schedule* — pick a period:",
+        get_text(lang, "schedule_title"),
         parse_mode="Markdown",
         reply_markup=keyboard,
     )
@@ -44,6 +46,7 @@ async def schedule_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def schedule_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
+    lang = context.user_data.get("lang", DEFAULT_LANG)
 
     # pattern: sched:week:0 / sched:month:1
     _, period, offset_str = query.data.split(":")
@@ -76,6 +79,7 @@ async def schedule_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def freetime_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
+    lang = context.user_data.get("lang", DEFAULT_LANG)
     today = date.today()
     buttons = []
     row = []
@@ -88,9 +92,9 @@ async def freetime_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             row = []
     if row:
         buttons.append(row)
-    buttons.append([InlineKeyboardButton("← Menu", callback_data="menu")])
+    buttons.append([InlineKeyboardButton(get_text(lang, "btn_menu"), callback_data="menu")])
     await query.edit_message_text(
-        "🟢 *Free time* — pick a day:",
+        get_text(lang, "free_time_title"),
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(buttons),
     )
@@ -99,8 +103,13 @@ async def freetime_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def freetime_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
+    lang = context.user_data.get("lang", DEFAULT_LANG)
     target_date = date.fromisoformat(query.data.split(":")[1])
     text = format_free_slots(target_date)
+    # Append "no bookings" note when the whole day is free
+    import database as _db
+    if not _db.get_bookings_for_date(target_date.isoformat()):
+        text += "\n\n📭 No bookings for this day."
     await query.edit_message_text(
         text,
         parse_mode="Markdown",

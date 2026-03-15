@@ -8,7 +8,8 @@ The main menu buttons are now localised via get_text().
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 
-from handlers.booking import get_text, _kb_language, DEFAULT_LANG
+from translations import get_text, DEFAULT_LANG
+from handlers.booking import _kb_language
 
 MENU_CALLBACK = "menu"
 
