@@ -16,7 +16,8 @@ from services.schedule_service import (
     format_free_slots,
 )
 
-_BACK = [[InlineKeyboardButton(get_text(lang, "btn_menu"), callback_data="menu")]]
+def _back(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[InlineKeyboardButton(get_text(lang, "btn_menu"), callback_data="menu")]])
 
 
 # ── Schedule entry ────────────────────────────────────────────────────────────
@@ -70,7 +71,7 @@ async def schedule_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await query.edit_message_text(
         text,
         parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(_BACK),
+        reply_markup=_back(lang),
     )
 
 
@@ -113,7 +114,7 @@ async def freetime_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await query.edit_message_text(
         text,
         parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(_BACK),
+        reply_markup=_back(lang),
     )
 
 
