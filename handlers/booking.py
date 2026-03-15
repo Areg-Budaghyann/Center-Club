@@ -1,124 +1,53 @@
 """
 handlers/booking.py
 ====================
-Multi-step office booking flow via Telegram inline keyboards.
-
-Flow:
-    [book] → Month → Day → Hour → Duration → Title → Confirm
-
-Changes in this version:
-    - Year step removed: flow starts directly at month selection
-    - Month grid shows current + next 11 months (rolling 12-month window)
-    - Multi-language support: EN / RU / HY via TEXTS dict + get_text()
-    - Language stored in context.user_data["lang"]
-    - "No bookings for this day" message shown when day is empty
-    - Improved conflict UX: blocked at hour selection level with alert
-    - Booking validation extracted into _has_conflict()
+Multi-step office booking flow.
+Flow: Month -> Day -> Hour -> Duration -> Title -> Confirm
+All texts from translations.py via get_text().
 """
 
 import calendar
 import logging
-from datetime import date, timedelta
+from datetime import date
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
-    CallbackQueryHandler,
-    ContextTypes,
-    ConversationHandler,
-    MessageHandler,
-    filters,
+    CallbackQueryHandler, ContextTypes, ConversationHandler,
+    MessageHandler, filters,
 )
 
-from translations import get_text, MONTH_NAMES, WEEKDAY_NAMES, DEFAULT_LANG, T as TEXTS
+from translations import get_text, MONTH_NAMES, DEFAULT_LANG
 from config import (
-    GROUP_CHAT_ID,
-    MAX_DURATION_HOURS,
-    MIN_DURATION_HOURS,
-    OFFICE_CLOSE,
-    OFFICE_OPEN,
-    STATE_CONFIRM,
-    STATE_ENTER_TITLE,
-    STATE_PICK_DATE,
-    STATE_PICK_DURATION,
-    STATE_PICK_HOUR,
+    GROUP_CHAT_ID, MAX_DURATION_HOURS, MIN_DURATION_HOURS,
+    OFFICE_CLOSE, OFFICE_OPEN,
+    STATE_CONFIRM, STATE_ENTER_TITLE, STATE_PICK_DATE,
+    STATE_PICK_DURATION, STATE_PICK_HOUR,
 )
 from services.booking_service import create_booking
 from services.schedule_service import get_free_slots
 
 logger = logging.getLogger(__name__)
 
-# ===========================================================================
-# Multi-language text dictionary
-# ===========================================================================
-# All user-facing strings live here. Add new keys to all 3 languages together.
-# Access via: get_text(lang, "key")
-# ===========================================================================
-
-
-# Month names per language (used in month/day grid headers)
-
-WEEKDAY_HEADERS: list[str] = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
-
-
-
-# ===========================================================================
-# Helper: get localized text
-# ===========================================================================
-
-def get_text(lang: str, key: str, **kwargs) -> str:
-    """
-    Return the localized string for the given key and language.
-    Falls back to English if the key is missing in the requested language.
-    Supports keyword format substitution: get_text("en", "choose_day", month="March 2026")
-    """
-    text = TEXTS.get(lang, TEXTS[DEFAULT_LANG]).get(
-        key,
-        TEXTS[DEFAULT_LANG].get(key, f"[missing: {key}]"),
-    )
-    return text.format(**kwargs) if kwargs else text
+WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 
 
 def _lang(context: ContextTypes.DEFAULT_TYPE) -> str:
-    """Shortcut to read the user's chosen language from context."""
     return context.user_data.get("lang", DEFAULT_LANG)
 
 
 # ===========================================================================
-# Booking conflict validation
+# Conflict check
 # ===========================================================================
 
-def _has_conflict(
-    date_str: str,
-    start_hour: int,
-    duration: int,
-    exclude_id: int | None = None,
-) -> object | None:
-    """
-    Check whether [start_hour, start_hour+duration) overlaps any existing booking.
-
-    Uses the standard overlap condition:
-        requested_start < existing_end  AND  requested_end > existing_start
-
-    Args:
-        date_str:   ISO date string "YYYY-MM-DD"
-        start_hour: integer hour (e.g. 15 for 15:00)
-        duration:   integer hours
-        exclude_id: booking id to skip (used during edits)
-
-    Returns:
-        The first conflicting Booking object, or None if the slot is free.
-    """
+def _has_conflict(date_str, start_hour, duration, exclude_id=None):
     import database
-
     req_start = start_hour
     req_end   = start_hour + duration
-
     for b in database.get_bookings_for_date(date_str):
         if exclude_id and b.id == exclude_id:
             continue
         ex_start = int(b.start_time.split(":")[0])
         ex_end   = int(b.end_time.split(":")[0])
-        # Overlap condition
         if req_start < ex_end and req_end > ex_start:
             return b
     return None
@@ -128,154 +57,416 @@ def _has_conflict(
 # Keyboard builders
 # ===========================================================================
 
+def _kb_month(lang: str) -> InlineKeyboardMarkup:
+    today = date.today()
+    names = MONTH_NAMES[lang]
+    rows, row = [], []
+    for i in range(12):
+        total = today.month - 1 + i
+        year  = today.year + total // 12
+        month = total % 12 + 1
+        label = f"{names[month-1][:3]} {str(year)[2:]}"
+        row.append(InlineKeyboardButton(label, callback_data=f"cal_month:{year}:{month}"))
+        if len(row) == 3:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append([InlineKeyboardButton(get_text(lang, "btn_cancel"), callback_data="book_cancel")])
+    return InlineKeyboardMarkup(rows)
 
 
-def _kb_day(year: int, month: int, lang: str) -> tuple[InlineKeyboardMarkup, str]:
-    """
-    Full calendar grid for the given month.
-    Past days: shown as number but fire cal_past (alert shown).
-    Today:     shown as [N].
-    Future:    shown as N.
-    Padding:   shown as ' '.
-    """
+def _kb_day(year: int, month: int, lang: str):
     today      = date.today()
-    month_name = f"{MONTH_NAMES[lang][month - 1]} {year}"
-
-    header_row = [
-        InlineKeyboardButton(h, callback_data="cal_noop")
-        for h in WEEKDAY_HEADERS
-    ]
-    rows: list[list[InlineKeyboardButton]] = [header_row]
-
+    month_name = f"{MONTH_NAMES[lang][month-1]} {year}"
+    rows = [[InlineKeyboardButton(h, callback_data="cal_noop") for h in WEEKDAY_HEADERS]]
     for week in calendar.monthcalendar(year, month):
-        row: list[InlineKeyboardButton] = []
+        row = []
         for day_num in week:
             if day_num == 0:
                 row.append(InlineKeyboardButton(" ", callback_data="cal_noop"))
             else:
                 d = date(year, month, day_num)
                 if d < today:
-                    row.append(InlineKeyboardButton(
-                        str(day_num), callback_data="cal_past"
-                    ))
+                    row.append(InlineKeyboardButton(str(day_num), callback_data="cal_past"))
                 elif d == today:
-                    row.append(InlineKeyboardButton(
-                        f"[{day_num}]", callback_data=f"date:{d.isoformat()}"
-                    ))
+                    row.append(InlineKeyboardButton(f"[{day_num}]", callback_data=f"date:{d.isoformat()}"))
                 else:
-                    row.append(InlineKeyboardButton(
-                        str(day_num), callback_data=f"date:{d.isoformat()}"
-                    ))
+                    row.append(InlineKeyboardButton(str(day_num), callback_data=f"date:{d.isoformat()}"))
         rows.append(row)
-
-    rows.append([InlineKeyboardButton(
-        get_text(lang, "back_button"),
-        callback_data="back_to_month",
-    )])
-    rows.append([InlineKeyboardButton(
-        get_text(lang, "cancel_button"),
-        callback_data="book_cancel",
-    )])
+    rows.append([InlineKeyboardButton(get_text(lang, "btn_back"), callback_data="back_to_month")])
+    rows.append([InlineKeyboardButton(get_text(lang, "btn_cancel"), callback_data="book_cancel")])
     return InlineKeyboardMarkup(rows), month_name
 
 
 def _kb_hour(chosen_date: str, lang: str) -> InlineKeyboardMarkup:
-    """
-    Hour grid. Available hours fire hour:H.
-    Booked hours fire hour_busy:BOOKING_ID so the alert can show
-    the exact event name and time that is blocking the slot.
-    4 buttons per row.
-    """
     import database
-
-    # Build a map: hour -> Booking (for every booked hour in the day)
-    hour_to_booking: dict[int, object] = {}
+    hour_to_booking = {}
     for b in database.get_bookings_for_date(chosen_date):
-        start_h = int(b.start_time.split(":")[0])
-        end_h   = int(b.end_time.split(":")[0])
-        for h in range(start_h, end_h):
+        for h in range(int(b.start_time.split(":")[0]), int(b.end_time.split(":")[0])):
             hour_to_booking[h] = b
-
-    rows: list[list[InlineKeyboardButton]] = []
-    row:  list[InlineKeyboardButton] = []
-
+    rows, row = [], []
     for h in range(OFFICE_OPEN, OFFICE_CLOSE):
         if h not in hour_to_booking:
-            # Free slot — fully clickable
-            row.append(InlineKeyboardButton(
-                f"{h:02d}:00", callback_data=f"hour:{h}"
-            ))
+            row.append(InlineKeyboardButton(f"{h:02d}:00", callback_data=f"hour:{h}"))
         else:
-            # Booked — encode the booking id so pick_hour can fetch details
-            booking_id = hour_to_booking[h].id
-            row.append(InlineKeyboardButton(
-                f"🔒 {h:02d}", callback_data=f"hour_busy:{booking_id}"
-            ))
+            row.append(InlineKeyboardButton(f"🔒 {h:02d}", callback_data=f"hour_busy:{hour_to_booking[h].id}"))
         if len(row) == 4:
             rows.append(row)
             row = []
-
     if row:
         rows.append(row)
-
-    rows.append([InlineKeyboardButton(
-        get_text(lang, "back_button"), callback_data="back_to_date"
-    )])
+    rows.append([InlineKeyboardButton(get_text(lang, "btn_back"), callback_data="back_to_date")])
     return InlineKeyboardMarkup(rows)
 
 
 def _kb_duration(chosen_date: str, start_hour: int, lang: str) -> InlineKeyboardMarkup:
-    """Duration buttons. Only shows options that fit in the next free window."""
     import datetime as _dt
-
-    free_slots  = get_free_slots(_dt.date.fromisoformat(chosen_date))
-    max_avail   = OFFICE_CLOSE - start_hour
-
-    for slot_start, slot_end in free_slots:
-        sh = int(slot_start.split(":")[0])
-        eh = int(slot_end.split(":")[0])
+    free_slots = get_free_slots(_dt.date.fromisoformat(chosen_date))
+    max_avail  = OFFICE_CLOSE - start_hour
+    for s, e in free_slots:
+        sh, eh = int(s.split(":")[0]), int(e.split(":")[0])
         if sh <= start_hour < eh:
             max_avail = min(max_avail, eh - start_hour)
             break
-
-    rows: list[list[InlineKeyboardButton]] = []
-    row:  list[InlineKeyboardButton] = []
-
+    rows, row = [], []
     for d in range(MIN_DURATION_HOURS, MAX_DURATION_HOURS + 1):
         if d <= max_avail:
             row.append(InlineKeyboardButton(f"{d}h", callback_data=f"dur:{d}"))
         if len(row) == 3:
             rows.append(row)
             row = []
-
     if row:
         rows.append(row)
-
     if not any(rows):
         rows = [[InlineKeyboardButton("—", callback_data="cal_noop")]]
-
-    rows.append([InlineKeyboardButton(
-        get_text(lang, "back_button"), callback_data="back_to_hour"
-    )])
+    rows.append([InlineKeyboardButton(get_text(lang, "btn_back"), callback_data="back_to_hour")])
     return InlineKeyboardMarkup(rows)
 
 
 def _kb_confirm(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton(get_text(lang, "confirm_button"),      callback_data="confirm_yes"),
-            InlineKeyboardButton(get_text(lang, "cancel_button"),       callback_data="book_cancel"),
+            InlineKeyboardButton(get_text(lang, "btn_confirm"), callback_data="confirm_yes"),
+            InlineKeyboardButton(get_text(lang, "btn_cancel"),  callback_data="book_cancel"),
         ],
-        [InlineKeyboardButton(get_text(lang, "change_title_button"),    callback_data="back_to_title")],
+        [InlineKeyboardButton(get_text(lang, "btn_change_title"), callback_data="back_to_title")],
     ])
 
 
 def _kb_menu(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(get_text(lang, "menu_button"), callback_data="menu")]
+        [InlineKeyboardButton(get_text(lang, "btn_menu"), callback_data="menu")]
     ])
 
 
 # ===========================================================================
-# Language selection (called from start.py via callback lang:XX)
+# Step 1 — Month picker
 # ===========================================================================
+
+async def book_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    lang = _lang(context)
+    context.user_data.clear()
+    context.user_data["lang"] = lang
+    await query.edit_message_text(
+        get_text(lang, "choose_month"),
+        parse_mode="Markdown",
+        reply_markup=_kb_month(lang),
+    )
+    return STATE_PICK_DATE
+
+
+async def pick_month(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    _, year_str, month_str = query.data.split(":")
+    year, month = int(year_str), int(month_str)
+    lang = _lang(context)
+    context.user_data["cal_year"]  = year
+    context.user_data["cal_month"] = month
+    keyboard, month_label = _kb_day(year, month, lang)
+    await query.edit_message_text(
+        get_text(lang, "choose_day", month=month_label),
+        parse_mode="Markdown",
+        reply_markup=keyboard,
+    )
+    return STATE_PICK_DATE
+
+
+async def back_to_month(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    lang = _lang(context)
+    await query.edit_message_text(
+        get_text(lang, "choose_month"),
+        parse_mode="Markdown",
+        reply_markup=_kb_month(lang),
+    )
+    return STATE_PICK_DATE
+
+
+async def pick_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    chosen_date = query.data.split(":")[1]
+    lang = _lang(context)
+    context.user_data["date"] = chosen_date
+    await query.edit_message_text(
+        get_text(lang, "choose_time", date=chosen_date),
+        parse_mode="Markdown",
+        reply_markup=_kb_hour(chosen_date, lang),
+    )
+    return STATE_PICK_HOUR
+
+
+async def back_to_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    lang  = _lang(context)
+    year  = context.user_data.get("cal_year")
+    month = context.user_data.get("cal_month")
+    if year and month:
+        keyboard, month_label = _kb_day(year, month, lang)
+        await query.edit_message_text(
+            get_text(lang, "choose_day", month=month_label),
+            parse_mode="Markdown",
+            reply_markup=keyboard,
+        )
+    else:
+        await query.edit_message_text(
+            get_text(lang, "choose_month"),
+            parse_mode="Markdown",
+            reply_markup=_kb_month(lang),
+        )
+    return STATE_PICK_DATE
+
+
+async def cal_noop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.callback_query.answer()
+    return STATE_PICK_DATE
+
+
+async def cal_past(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = _lang(context)
+    await update.callback_query.answer(get_text(lang, "past_day_alert"), show_alert=True)
+    return STATE_PICK_DATE
+
+
+# ===========================================================================
+# Step 2 — Hour
+# ===========================================================================
+
+async def pick_hour(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    lang  = _lang(context)
+    if query.data.startswith("hour_busy"):
+        import database
+        try:
+            b = database.get_booking_by_id(int(query.data.split(":")[1]))
+            alert = get_text(lang, "slot_taken_detail",
+                             title=b.title, start=b.start_time,
+                             end=b.end_time, user=b.username) if b else get_text(lang, "slot_taken_alert")
+        except Exception:
+            alert = get_text(lang, "slot_taken_alert")
+        await query.answer(alert, show_alert=True)
+        return STATE_PICK_HOUR
+    await query.answer()
+    hour = int(query.data.split(":")[1])
+    chosen_date = context.user_data["date"]
+    context.user_data["start_hour"] = hour
+    await query.edit_message_text(
+        get_text(lang, "choose_duration", date=chosen_date, hour=f"{hour:02d}"),
+        parse_mode="Markdown",
+        reply_markup=_kb_duration(chosen_date, hour, lang),
+    )
+    return STATE_PICK_DURATION
+
+
+async def back_to_hour(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    lang = _lang(context)
+    chosen_date = context.user_data["date"]
+    await query.edit_message_text(
+        get_text(lang, "choose_time", date=chosen_date),
+        parse_mode="Markdown",
+        reply_markup=_kb_hour(chosen_date, lang),
+    )
+    return STATE_PICK_HOUR
+
+
+# ===========================================================================
+# Step 3 — Duration
+# ===========================================================================
+
+async def pick_duration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    duration    = int(query.data.split(":")[1])
+    lang        = _lang(context)
+    chosen_date = context.user_data["date"]
+    start_hour  = context.user_data["start_hour"]
+    context.user_data["duration"] = duration
+    await query.edit_message_text(
+        get_text(lang, "enter_title", date=chosen_date, hour=f"{start_hour:02d}", duration=duration),
+        parse_mode="Markdown",
+    )
+    return STATE_ENTER_TITLE
+
+
+async def back_to_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    lang        = _lang(context)
+    chosen_date = context.user_data["date"]
+    start_hour  = context.user_data["start_hour"]
+    duration    = context.user_data["duration"]
+    await query.edit_message_text(
+        get_text(lang, "enter_title_again", date=chosen_date, hour=f"{start_hour:02d}", duration=duration),
+        parse_mode="Markdown",
+    )
+    return STATE_ENTER_TITLE
+
+
+# ===========================================================================
+# Step 4 — Title
+# ===========================================================================
+
+async def enter_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    title = update.message.text.strip()
+    lang  = _lang(context)
+    if not title:
+        await update.message.reply_text(get_text(lang, "title_empty"))
+        return STATE_ENTER_TITLE
+    if len(title) > 80:
+        await update.message.reply_text(get_text(lang, "title_too_long", length=len(title)))
+        return STATE_ENTER_TITLE
+    context.user_data["title"] = title
+    chosen_date  = context.user_data["date"]
+    start_hour   = context.user_data["start_hour"]
+    duration     = context.user_data["duration"]
+    end_hour     = start_hour + duration
+    display_name = update.effective_user.username or update.effective_user.first_name
+    await update.message.reply_text(
+        get_text(lang, "confirm_preview", title=title, date=chosen_date,
+                 start=f"{start_hour:02d}", end=f"{end_hour:02d}",
+                 duration=duration, user=display_name),
+        parse_mode="Markdown",
+        reply_markup=_kb_confirm(lang),
+    )
+    return STATE_CONFIRM
+
+
+# ===========================================================================
+# Confirm
+# ===========================================================================
+
+async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query    = update.callback_query
+    await query.answer()
+    lang     = _lang(context)
+    user     = update.effective_user
+    username = user.username or user.first_name
+    ud       = context.user_data
+
+    conflict = _has_conflict(ud["date"], ud["start_hour"], ud["duration"])
+    if conflict:
+        await query.edit_message_text(
+            get_text(lang, "booking_conflict", start=conflict.start_time,
+                     end=conflict.end_time, title=conflict.title, user=conflict.username),
+            parse_mode="Markdown", reply_markup=_kb_menu(lang),
+        )
+        return ConversationHandler.END
+
+    new_booking, db_conflict = create_booking(
+        user_id=user.id, username=username, title=ud["title"],
+        date=ud["date"], start_time=f"{ud['start_hour']:02d}:00", duration=ud["duration"],
+    )
+
+    if db_conflict:
+        await query.edit_message_text(
+            get_text(lang, "booking_conflict", start=db_conflict.start_time,
+                     end=db_conflict.end_time, title=db_conflict.title, user=db_conflict.username),
+            parse_mode="Markdown", reply_markup=_kb_menu(lang),
+        )
+        return ConversationHandler.END
+
+    await query.edit_message_text(
+        get_text(lang, "booking_confirmed", details=new_booking.full_text()),
+        parse_mode="Markdown", reply_markup=_kb_menu(lang),
+    )
+
+    if GROUP_CHAT_ID:
+        import datetime as _dt
+        day_name = _dt.date.fromisoformat(new_booking.date).strftime("%A, %b %d")
+        try:
+            await context.bot.send_message(
+                chat_id=GROUP_CHAT_ID,
+                text=get_text("en", "group_notification", day=day_name,
+                              start=new_booking.start_time, end=new_booking.end_time,
+                              title=new_booking.title, user=new_booking.username),
+                parse_mode="Markdown",
+            )
+        except Exception as exc:
+            logger.warning("Group notification failed: %s", exc)
+
+    context.user_data.clear()
+    return ConversationHandler.END
+
+
+# ===========================================================================
+# Cancel
+# ===========================================================================
+
+async def book_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    lang = _lang(context)
+    context.user_data.clear()
+    await query.edit_message_text(get_text(lang, "booking_cancelled"), reply_markup=_kb_menu(lang))
+    return ConversationHandler.END
+
+
+# ===========================================================================
+# Registration
+# ===========================================================================
+
+def register(application) -> None:
+    conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(book_entry, pattern="^book$")],
+        states={
+            STATE_PICK_DATE: [
+                CallbackQueryHandler(pick_month,    pattern=r"^cal_month:\d+:\d+$"),
+                CallbackQueryHandler(pick_date,     pattern=r"^date:\d{4}-\d{2}-\d{2}$"),
+                CallbackQueryHandler(back_to_month, pattern="^back_to_month$"),
+                CallbackQueryHandler(cal_noop,      pattern="^cal_noop$"),
+                CallbackQueryHandler(cal_past,      pattern="^cal_past$"),
+                CallbackQueryHandler(book_cancel,   pattern="^book_cancel$"),
+            ],
+            STATE_PICK_HOUR: [
+                CallbackQueryHandler(pick_hour,    pattern=r"^hour:\d+$"),
+                CallbackQueryHandler(pick_hour,    pattern=r"^hour_busy:\d+$"),
+                CallbackQueryHandler(back_to_date, pattern="^back_to_date$"),
+                CallbackQueryHandler(book_cancel,  pattern="^book_cancel$"),
+            ],
+            STATE_PICK_DURATION: [
+                CallbackQueryHandler(pick_duration, pattern=r"^dur:\d+$"),
+                CallbackQueryHandler(back_to_hour,  pattern="^back_to_hour$"),
+                CallbackQueryHandler(book_cancel,   pattern="^book_cancel$"),
+            ],
+            STATE_ENTER_TITLE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, enter_title),
+                CallbackQueryHandler(book_cancel, pattern="^book_cancel$"),
+            ],
+            STATE_CONFIRM: [
+                CallbackQueryHandler(confirm_booking, pattern="^confirm_yes$"),
+                CallbackQueryHandler(back_to_title,   pattern="^back_to_title$"),
+                CallbackQueryHandler(book_cancel,     pattern="^book_cancel$"),
+            ],
+        },
+        fallbacks=[CallbackQueryHandler(book_cancel, pattern="^book_cancel$")],
+        per_message=False,
+    )
+    application.add_handler(conv)
