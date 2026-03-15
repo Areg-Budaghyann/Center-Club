@@ -199,3 +199,59 @@ def mark_reminder_sent(booking_id: int) -> None:
             "INSERT OR IGNORE INTO reminder_sent (booking_id, sent_at) VALUES (?, ?)",
             (booking_id, sent_at),
         )
+
+# ── Bulk / recurring operations ───────────────────────────────────────────────
+
+def create_recurring_bookings(
+    user_id: int,
+    username: str,
+    title: str,
+    weekday: int,          # 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun
+    start_time: str,       # "HH:MM"
+    duration: int,         # hours (can be fractional via end_time override)
+    end_time: str,         # "HH:MM" — used for display; duration is stored as ceil
+    from_date: str,        # ISO "YYYY-MM-DD" inclusive
+    to_date: str,          # ISO "YYYY-MM-DD" inclusive
+) -> tuple[list[Booking], list[str]]:
+    """
+    Create a booking on every occurrence of `weekday` between from_date and to_date.
+    Skips any date that already has a conflicting booking.
+
+    Returns:
+        (created, skipped_dates) where skipped_dates are ISO strings that had conflicts.
+    """
+    from datetime import date, timedelta
+
+    created: list[Booking] = []
+    skipped: list[str] = []
+
+    start = date.fromisoformat(from_date)
+    end   = date.fromisoformat(to_date)
+
+    # Advance to the first occurrence of the target weekday
+    days_ahead = (weekday - start.weekday()) % 7
+    current = start + timedelta(days=days_ahead)
+
+    while current <= end:
+        date_str = current.isoformat()
+
+        # Conflict check
+        conflict = False
+        req_start = int(start_time.split(":")[0])
+        req_end   = req_start + duration
+        for b in get_bookings_for_date(date_str):
+            ex_start = int(b.start_time.split(":")[0])
+            ex_end   = int(b.end_time.split(":")[0])
+            if req_start < ex_end and req_end > ex_start:
+                conflict = True
+                break
+
+        if conflict:
+            skipped.append(date_str)
+        else:
+            b = create_booking(user_id, username, title, date_str, start_time, duration)
+            created.append(b)
+
+        current += timedelta(weeks=1)
+
+    return created, skipped
