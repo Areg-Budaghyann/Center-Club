@@ -66,7 +66,7 @@ async def schedule_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if m > 12:
             m -= 12
             y += 1
-        text = build_monthly_schedule(y, m)
+        text = build_monthly_schedule(y, m, lang)
 
     await query.edit_message_text(
         text,
