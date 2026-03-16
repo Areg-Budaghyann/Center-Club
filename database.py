@@ -54,6 +54,14 @@ def init_db() -> None:
                 booking_id  INTEGER PRIMARY KEY,
                 sent_at     TEXT NOT NULL
             );
+
+            -- Tracks every user who has ever used the bot so we can broadcast notifications
+            CREATE TABLE IF NOT EXISTS users (
+                user_id     INTEGER PRIMARY KEY,
+                username    TEXT    NOT NULL,
+                lang        TEXT    NOT NULL DEFAULT 'en',
+                first_seen  TEXT    NOT NULL
+            );
         """)
     logger.info("Database initialised at %s", DATABASE_PATH)
 
@@ -255,3 +263,27 @@ def create_recurring_bookings(
         current += timedelta(weeks=1)
 
     return created, skipped
+
+
+# ── User registry ─────────────────────────────────────────────────────────────
+
+def upsert_user(user_id: int, username: str, lang: str = "en") -> None:
+    """Register or update a user. Called on every interaction."""
+    from datetime import datetime
+    first_seen = datetime.utcnow().isoformat(timespec="seconds")
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO users (user_id, username, lang, first_seen)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET username=excluded.username, lang=excluded.lang
+            """,
+            (user_id, username, lang, first_seen),
+        )
+
+
+def get_all_user_ids() -> list[int]:
+    """Return all known user IDs for broadcast notifications."""
+    with _connect() as conn:
+        rows = conn.execute("SELECT user_id FROM users").fetchall()
+    return [r["user_id"] for r in rows]

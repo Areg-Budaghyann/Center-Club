@@ -16,7 +16,7 @@ from telegram.ext import (
     MessageHandler, filters,
 )
 
-from translations import get_text, MONTH_NAMES, DEFAULT_LANG
+from translations import get_text, MONTH_NAMES, MONTH_SHORT, DEFAULT_LANG
 from config import (
     GROUP_CHAT_ID, MAX_DURATION_HOURS, MIN_DURATION_HOURS,
     OFFICE_CLOSE, OFFICE_OPEN,
@@ -59,13 +59,12 @@ def _has_conflict(date_str, start_hour, duration, exclude_id=None):
 
 def _kb_month(lang: str) -> InlineKeyboardMarkup:
     today = date.today()
-    names = MONTH_NAMES[lang]
     rows, row = [], []
     for i in range(12):
         total = today.month - 1 + i
         year  = today.year + total // 12
         month = total % 12 + 1
-        label = f"{names[month-1][:3]} {str(year)[2:]}"
+        label = f"{MONTH_SHORT[lang][month-1]} {str(year)[2:]}"
         row.append(InlineKeyboardButton(label, callback_data=f"cal_month:{year}:{month}"))
         if len(row) == 3:
             rows.append(row)
@@ -168,7 +167,7 @@ async def book_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
     lang = _lang(context)
-    context.user_data.clear()
+    lang = context.user_data.get("lang"); context.user_data.clear(); context.user_data["lang"] = lang
     context.user_data["lang"] = lang
     await query.edit_message_text(
         get_text(lang, "choose_month"),
@@ -398,9 +397,43 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         parse_mode="Markdown", reply_markup=_kb_menu(lang),
     )
 
+    # ── Notify ALL users + group chat ─────────────────────────────────────────
+    import datetime as _dt
+    import database as _db
+    day_name = _dt.date.fromisoformat(new_booking.date).strftime("%A, %b %d")
+
+    # Build notification text in each language so each user gets it in their own language
+    booker_id = user.id
+    all_user_ids = _db.get_all_user_ids()
+
+    for uid in all_user_ids:
+        if uid == booker_id:
+            continue  # skip the person who just booked — they already saw the confirmation
+        try:
+            # Look up this user's language from the users table
+            with _db._connect() as conn:
+                row = conn.execute("SELECT lang FROM users WHERE user_id = ?", (uid,)).fetchone()
+            user_lang = row["lang"] if row else "en"
+
+            notification = (
+                "📢 *" + get_text(user_lang, "btn_book_office") + "*\n\n"
+                + get_text(user_lang, "group_notification",
+                           day=day_name,
+                           start=new_booking.start_time,
+                           end=new_booking.end_time,
+                           title=new_booking.title,
+                           user=new_booking.username)
+            )
+            await context.bot.send_message(
+                chat_id=uid,
+                text=notification,
+                parse_mode="Markdown",
+            )
+        except Exception as exc:
+            logger.warning("Could not notify user_id=%d: %s", uid, exc)
+
+    # Also send to group chat if configured
     if GROUP_CHAT_ID:
-        import datetime as _dt
-        day_name = _dt.date.fromisoformat(new_booking.date).strftime("%A, %b %d")
         try:
             await context.bot.send_message(
                 chat_id=GROUP_CHAT_ID,
@@ -412,7 +445,7 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         except Exception as exc:
             logger.warning("Group notification failed: %s", exc)
 
-    context.user_data.clear()
+    lang = context.user_data.get("lang"); context.user_data.clear(); context.user_data["lang"] = lang
     return ConversationHandler.END
 
 
@@ -424,7 +457,7 @@ async def book_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     query = update.callback_query
     await query.answer()
     lang = _lang(context)
-    context.user_data.clear()
+    lang = context.user_data.get("lang"); context.user_data.clear(); context.user_data["lang"] = lang
     await query.edit_message_text(get_text(lang, "booking_cancelled"), reply_markup=_kb_menu(lang))
     return ConversationHandler.END
 

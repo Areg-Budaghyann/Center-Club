@@ -29,9 +29,26 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+async def _track_user(update, context) -> None:
+    """
+    Middleware: register every user who interacts with the bot.
+    Runs before every handler so the users table stays up to date.
+    """
+    user = update.effective_user
+    if user and not user.is_bot:
+        lang = context.user_data.get("lang", "en")
+        username = user.username or user.first_name or str(user.id)
+        database.upsert_user(user.id, username, lang)
+
+
 def build_application() -> Application:
     """Wire everything together and return the Application."""
     app = Application.builder().token(BOT_TOKEN).build()
+
+    # Track every user automatically before any handler runs
+    from telegram.ext import TypeHandler
+    from telegram import Update as TGUpdate
+    app.add_handler(TypeHandler(TGUpdate, _track_user), group=-1)
 
     # Register handlers (order matters — more specific first)
     booking.register(app)       # ConversationHandler for booking flow
