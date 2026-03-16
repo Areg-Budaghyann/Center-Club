@@ -318,7 +318,6 @@ async def pick_duration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     context.user_data["duration"] = duration
     await query.edit_message_text(
         get_text(lang, "enter_title", date=chosen_date, hour=f"{start_hour:02d}", duration=duration),
-        parse_mode="Markdown",
     )
     return STATE_ENTER_TITLE
 
@@ -332,7 +331,6 @@ async def back_to_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     duration    = context.user_data["duration"]
     await query.edit_message_text(
         get_text(lang, "enter_title_again", date=chosen_date, hour=f"{start_hour:02d}", duration=duration),
-        parse_mode="Markdown",
     )
     return STATE_ENTER_TITLE
 

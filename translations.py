@@ -1,7 +1,7 @@
 """
 translations.py
 ================
-ALL user-facing texts for the Office Booking Bot live here.
+ALL user-facing texts for the Club Booking Bot live here.
 
 HOW TO EDIT
 -----------
@@ -48,12 +48,12 @@ T: dict[str, dict[str, str]] = {
     "en": {
 
         # ── START & MAIN MENU ───────────────────────────────────────────────
-        "start_message":         "👋 *Office Booking Bot*\n\nReserve a time slot in our shared office.\nWhat would you like to do?",
+        "start_message":         "👋 *Club Booking Bot*\n\nReserve a time slot in our shared club.\nWhat would you like to do?",
         "choose_language":       "🌐 Choose language / Выберите язык / Ընտրեք լեզուն",
         "language_changed":      "✅ Language set to English.",
 
         # ── MAIN MENU BUTTONS ───────────────────────────────────────────────
-        "btn_book_office":       "📅 Book office",
+        "btn_book_office":       "📅 Book club",
         "btn_view_schedule":     "📊 View schedule",
         "btn_my_bookings":       "📌 My bookings",
         "btn_free_time":         "🟢 Free time",
@@ -63,11 +63,11 @@ T: dict[str, dict[str, str]] = {
         # ── HELP ────────────────────────────────────────────────────────────
         "help_text":             (
             "ℹ️ *Help*\n\n"
-            "*📅 Book office* — reserve a time slot step by step.\n"
+            "*📅 Book club* — reserve a time slot step by step.\n"
             "*📊 View schedule* — see weekly or monthly bookings.\n"
             "*📌 My bookings* — view, edit, or cancel your reservations.\n"
             "*🟢 Free time* — check what hours are available.\n\n"
-            "Office hours: 10:00 – 23:00\n"
+            "club hours: 10:00 – 23:00\n"
             "Max booking: 6 hours"
         ),
 
@@ -95,7 +95,7 @@ T: dict[str, dict[str, str]] = {
         "slot_taken_detail":     "🔒 Already booked!\n\n📋 {title}\n🕐 {start} – {end}\n👤 @{user}",
 
         # ── GROUP NOTIFICATION ──────────────────────────────────────────────
-        "group_notification":    "📢 *New office booking*\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 *{title}*\n👤 Organiser: @{user}",
+        "group_notification":    "📢 *New club booking*\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 *{title}*\n👤 Organiser: @{user}",
 
         # ── MY BOOKINGS ─────────────────────────────────────────────────────
         "my_bookings_title":     "📌 *My bookings* — tap one to manage it:",
@@ -193,11 +193,11 @@ T: dict[str, dict[str, str]] = {
     # -----------------------------------------------------------------------
     "ru": {
 
-        "start_message":         "👋 *Бот бронирования офиса*\n\nЗабронируйте время в нашем общем офисе.\nЧто вы хотите сделать?",
+        "start_message":         "👋 *Бот бронирования клуба*\n\nЗабронируйте время в нашем общем клубе.\nЧто вы хотите сделать?",
         "choose_language":       "🌐 Choose language / Выберите язык / Ընտրեք լեզուն",
         "language_changed":      "✅ Язык изменён на Русский.",
 
-        "btn_book_office":       "📅 Забронировать офис",
+        "btn_book_office":       "📅 Забронировать клуб",
         "btn_view_schedule":     "📊 Расписание",
         "btn_my_bookings":       "📌 Мои брони",
         "btn_free_time":         "🟢 Свободное время",
@@ -206,7 +206,7 @@ T: dict[str, dict[str, str]] = {
 
         "help_text":             (
             "ℹ️ *Помощь*\n\n"
-            "*📅 Забронировать офис* — пошаговое бронирование.\n"
+            "*📅 Забронировать клуб* — пошаговое бронирование.\n"
             "*📊 Расписание* — просмотр недельного или месячного расписания.\n"
             "*📌 Мои брони* — просмотр, редактирование или отмена броней.\n"
             "*🟢 Свободное время* — проверить доступные часы.\n\n"
@@ -235,7 +235,7 @@ T: dict[str, dict[str, str]] = {
         "slot_taken_alert":      "⛔ Этот час уже занят.",
         "slot_taken_detail":     "🔒 Уже занято!\n\n📋 {title}\n🕐 {start} – {end}\n👤 @{user}",
 
-        "group_notification":    "📢 *Новое бронирование офиса*\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 *{title}*\n👤 Организатор: @{user}",
+        "group_notification":    "📢 *Новое бронирование клуба*\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 *{title}*\n👤 Организатор: @{user}",
 
         "my_bookings_title":     "📌 *Мои брони* — нажмите для управления:",
         "my_bookings_empty":     "📌 *Мои брони*\n\nУ вас нет предстоящих броней.",
@@ -307,12 +307,12 @@ T: dict[str, dict[str, str]] = {
     # -----------------------------------------------------------------------
     "hy": {
 
-        "start_message":         "👋 *Օֆիսի ամրագրման բոտ*\n\nՊահպանեք ժամ մեր ընդհանուր օֆիսում։\nԻնչ կցանկանայի՞ք անել:",
+        "start_message":         "👋 *Ակումբի ամրագրման բոտ*\n\nՊահպանեք ժամ մեր ընդհանուր ակումբում։\nԻնչ կցանկանայի՞ք անել:",
         "choose_language":       "🌐 Choose language / Выберите язык / Ընտրեք լեզուն",
         "language_changed":      "✅ Լեզուն փոխվել է հայերենի։",
 
-        "btn_book_office":       "📅 Ամրագրել օֆիս",
-        "btn_view_schedule":     "📊 Դիտել ժամանակացույցը",
+        "btn_book_office":       "📅 Ամրագրել ակումբը",
+        "btn_view_schedule":     "📊 Դիտել գրաֆիկը",
         "btn_my_bookings":       "📌 Իմ ամրագրումները",
         "btn_free_time":         "🟢 Ազատ ժամեր",
         "btn_help":              "ℹ️ Օգնություն",
@@ -320,7 +320,7 @@ T: dict[str, dict[str, str]] = {
 
         "help_text":             (
             "ℹ️ *Օգնություն*\n\n"
-            "*📅 Ամրագրել օֆիս* — քայլ առ քայլ ամրագրում։\n"
+            "*📅 Ամրագրել ակումբը* — քայլ առ քայլ ամրագրում։\n"
             "*📊 Դիտել ժամանակացույցը* — շաբաթական կամ ամսական ամրագրումներ։\n"
             "*📌 Իմ ամրագրումները* — դիտել, խմբագրել կամ չեղարկել ամրագրումները։\n"
             "*🟢 Ազատ ժամեր* — ստուգել ազատ ժամերը։\n\n"
@@ -332,7 +332,7 @@ T: dict[str, dict[str, str]] = {
         "choose_day":            "📅 *{month}* — ընտրեք օրը:",
         "choose_time":           "📅 {date}\n\n🕐 *Քայլ 2 4-ից — Ընտրեք մեկնարկի ժամը:*",
         "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ *Քայլ 3 4-ից — Ընտրեք տևողությունը:*",
-        "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ժ\n\n✏️ *Քայլ 4 4-ից — Մուտքագրեք անունը:*\n\n_Օրինակ՝ Սեղանի խաղեր, Թիմային հանդիպում_",
+        "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ժ\n\n✏️ *Քայլ 4 4-ից — Մուտքագրեք անունը:*\n\n_Օրինակ՝ Սեղանի խաղեր, Փոքր խումբ կամ ArtTherapy",
         "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ժ\n\n✏️ *Քայլ 4 4-ից — Մուտքագրեք անունը:*\n\n_Մուտքագրեք միջոցառման անունը_",
         "confirm_preview":       "✅ *Հաստատե՞լ ամրագրումը:*\n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}ժ)\n👤 @{user}",
         "booking_confirmed":     "🎉 *Ամրագրումը հաստատված է!*\n\n{details}",
@@ -349,9 +349,9 @@ T: dict[str, dict[str, str]] = {
         "slot_taken_alert":      "⛔ Այս ժամը արդեն զբաղված է։",
         "slot_taken_detail":     "🔒 Արդեն զբաղված է!\n\n📋 {title}\n🕐 {start} – {end}\n👤 @{user}",
 
-        "group_notification":    "📢 *Օֆիսի նոր ամրագրում*\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 *{title}*\n👤 Կազմակերպիչ: @{user}",
+        "group_notification":    "📢 *Ակումբի նոր ամրագրում*\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 *{title}*\n👤 Ամրագրում է: @{user}",
 
-        "my_bookings_title":     "📌 *Իմ ամրագրումները* — հպեք կառավարելու համար.",
+        "my_bookings_title":     "📌 *Իմ ամրագրումները* — սեղմեք կառավարելու համար.",
         "my_bookings_empty":     "📌 *Իմ ամրագրումները*\n\nԴուք չունեք առաջիկա ամրագրումներ։",
         "booking_not_found":     "Ամրագրումը չի գտնվել։",
         "booking_deleted":       "✅ Ամրագրումը չեղարկված է։",
@@ -421,7 +421,7 @@ T: dict[str, dict[str, str]] = {
 # ===========================================================================
 # Month names per language (used in calendar grids)
 # ===========================================================================
-
+ 
 MONTH_NAMES: dict[str, list[str]] = {
     "en": ["January","February","March","April","May","June",
            "July","August","September","October","November","December"],
@@ -430,16 +430,27 @@ MONTH_NAMES: dict[str, list[str]] = {
     "hy": ["Հունվար","Փետրվար","Մարտ","Ապրիլ","Մայիս","Հունիս",
            "Հուլիս","Օգոստոս","Սեպտեմբեր","Հոկտեմբեր","Նոյեմբեր","Դեկտեմբեր"],
 }
-
+ 
+# Explicit short abbreviations for month-picker buttons.
+# Defined separately so languages where [:3] gives duplicates
+# (Armenian: Հունիս/Հուլիս both become Հու) have distinct labels.
+MONTH_SHORT: dict[str, list[str]] = {
+    "en": ["Jan","Feb","Mar","Apr","May","Jun",
+           "Jul","Aug","Sep","Oct","Nov","Dec"],
+    "ru": ["Янв","Фев","Мар","Апр","Май","Июн",
+           "Июл","Авг","Сен","Окт","Ноя","Дек"],
+    "hy": ["Հնվ","Փտր","Մրտ","Ապր","Մյս","Հուն",
+           "Հուլ","Օգս","Սեպ","Հկտ","Նյբ","Դկտ"],
+}
+ 
 # Weekday names per language (0=Monday … 6=Sunday)
 WEEKDAY_NAMES: dict[str, list[str]] = {
     "en": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
     "ru": ["Понедельник","Вторник","Среда","Четверг","Пятница","Суббота","Воскресенье"],
     "hy": ["Երկուշաբթի","Երեքշաբթի","Չորեքշաբթի","Հինգշաբթի","Ուրբաթ","Շաբաթ","Կիրակի"],
 }
-
+ 
 DEFAULT_LANG = "en"
-
 
 # ===========================================================================
 # Public helper function — use this everywhere in the bot
