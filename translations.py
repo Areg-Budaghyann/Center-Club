@@ -74,11 +74,11 @@ T: dict[str, dict[str, str]] = {
         # ── BOOKING FLOW ────────────────────────────────────────────────────
         "choose_month":          "📅 *Step 1 of 4 — Choose a month:*",
         "choose_day":            "📅 *{month}* — choose a day:",
-        "choose_time":           "📅 {date}\n\n🕐 *Step 2 of 4 — Choose start time:*",
+        "choose_time":           "📅 {date}\n\n🕐 Step 2 of 4 — Choose start time:",
         "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ *Step 3 of 4 — Choose duration:*",
-        "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}h\n\n✏️ *Step 4 of 4 — Enter event title:*\n\n_Type the name of your event (e.g. Board Games, Team Meeting)_",
-        "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}h\n\n✏️ *Step 4 of 4 — Enter event title:*\n\n_Type the name of your event_",
-        "confirm_preview":       "✅ *Confirm your booking:*\n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}h)\n👤 @{user}",
+        "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}h\n\n✏️ Step 4 of 4 — Enter event title:*\n\n Type the name of your event (e.g. Board Games, Team Meeting)",
+        "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}h\n\n✏️ Step 4 of 4 — Enter event title:*\n\n Type the name of your event",
+        "confirm_preview":       "✅ Confirm your booking:*\n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}h)\n👤 @{user}",
         "booking_confirmed":     "🎉 *Booking confirmed!*\n\n{details}",
         "booking_cancelled":     "Booking cancelled.",
 
@@ -103,6 +103,11 @@ T: dict[str, dict[str, str]] = {
         "booking_not_found":     "Booking not found.",
         "booking_deleted":       "✅ Booking cancelled.",
         "booking_delete_failed": "❌ Could not cancel: {reason}",
+        "btn_delete_all":        "🗑 Delete all my bookings",
+        "btn_delete_all_yes":    "✅ Yes, delete all",
+        "delete_all_confirm":    "⚠️ *Delete all bookings?*\n\nThis will cancel all *{count}* upcoming bookings. This cannot be undone.",
+        "delete_all_done":       "✅ *Done.* {count} booking(s) deleted.",
+
 
         # ── EDIT BOOKING ────────────────────────────────────────────────────
         "edit_title":            "✏️ *Edit booking* — what would you like to change?",
@@ -216,10 +221,10 @@ T: dict[str, dict[str, str]] = {
 
         "choose_month":          "📅 *Шаг 1 из 4 — Выберите месяц:*",
         "choose_day":            "📅 *{month}* — выберите день:",
-        "choose_time":           "📅 {date}\n\n🕐 *Шаг 2 из 4 — Выберите время начала:*",
-        "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ *Шаг 3 из 4 — Выберите длительность:*",
-        "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ч\n\n✏️ *Шаг 4 из 4 — Введите название:*\n\n_Например: Настольные игры, Встреча команды_",
-        "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ч\n\n✏️ *Шаг 4 из 4 — Введите название:*\n\n_Введите название события_",
+        "choose_time":           "📅 {date}\n\n🕐 Шаг 2 из 4 — Выберите время начала:*",
+        "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ *Шаг 3 из 4 — Выберите длительность:",
+        "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ч\n\n✏️ Шаг 4 из 4 — Введите название: \n\n Например: Настольные игры, Встреча команды",
+        "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ч\n\n✏️ Шаг 4 из 4 — Введите название: \n\n_Введите название события_",
         "confirm_preview":       "✅ *Подтвердите бронирование:*\n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}ч)\n👤 @{user}",
         "booking_confirmed":     "🎉 *Бронирование подтверждено!*\n\n{details}",
         "booking_cancelled":     "Бронирование отменено.",
@@ -242,6 +247,10 @@ T: dict[str, dict[str, str]] = {
         "booking_not_found":     "Бронирование не найдено.",
         "booking_deleted":       "✅ Бронирование отменено.",
         "booking_delete_failed": "❌ Не удалось отменить: {reason}",
+        "btn_delete_all":        "🗑 Удалить все мои брони",
+        "btn_delete_all_yes":    "✅ Да, удалить все",
+        "delete_all_confirm":    "⚠️ *Удалить все брони?*\n\nЭто отменит все *{count}* предстоящих броней. Отменить невозможно.",
+        "delete_all_done":       "✅ *Готово.* Удалено {count} бронирований.",
 
         "edit_title":            "✏️ *Редактировать бронь* — что изменить?",
         "edit_pick_duration":    "Текущая длительность: *{duration}ч*\n\nВыберите новую:",
@@ -332,8 +341,8 @@ T: dict[str, dict[str, str]] = {
         "choose_day":            "📅 *{month}* — ընտրեք օրը:",
         "choose_time":           "📅 {date}\n\n🕐 *Քայլ 2 4-ից — Ընտրեք մեկնարկի ժամը:*",
         "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ *Քայլ 3 4-ից — Ընտրեք տևողությունը:*",
-        "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ժ\n\n✏️ *Քայլ 4 4-ից — Մուտքագրեք անունը:*\n\n_Օրինակ՝ Սեղանի խաղեր, Փոքր խումբ կամ ArtTherapy",
-        "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ժ\n\n✏️ *Քայլ 4 4-ից — Մուտքագրեք անունը:*\n\n_Մուտքագրեք միջոցառման անունը_",
+        "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ժ\n\n✏️ Քայլ 4 4-ից — Մուտքագրեք անունը: \n\n_Օրինակ՝ Սեղանի խաղեր, Փոքր խումբ կամ ArtTherapy",
+        "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ժ\n\n✏️ Քայլ 4 4-ից — Մուտքագրեք անունը: \n\n_Մուտքագրեք միջոցառման անունը_",
         "confirm_preview":       "✅ *Հաստատե՞լ ամրագրումը:*\n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}ժ)\n👤 @{user}",
         "booking_confirmed":     "🎉 *Ամրագրումը հաստատված է!*\n\n{details}",
         "booking_cancelled":     "Ամրագրումը չեղարկված է։",
@@ -356,6 +365,11 @@ T: dict[str, dict[str, str]] = {
         "booking_not_found":     "Ամրագրումը չի գտնվել։",
         "booking_deleted":       "✅ Ամրագրումը չեղարկված է։",
         "booking_delete_failed": "❌ Չհաջողվեց չեղարկել. {reason}",
+        "btn_delete_all":        "🗑 Չեղարկել իմ բոլոր ամրագրումները",
+        "btn_delete_all_yes":    "✅ Այո, չեղարկել ամբողջը",
+        "delete_all_confirm":    "⚠️ *Չեղարկե՞լ ամբողջը*\n\nՍա կջնջի թվով *{count}* ձեր բոլոր ամրագրումները։",
+        "delete_all_done":       "✅ *Կատարված է։*",
+
 
         "edit_title":            "✏️ *Խմբագրել ամրագրումը* — ինչ փոխե՞լ:",
         "edit_pick_duration":    "Ընթացիկ տևողություն՝ *{duration}ժ*\n\nԸնտրեք նոր տևողություն:",

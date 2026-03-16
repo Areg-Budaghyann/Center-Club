@@ -56,6 +56,9 @@ async def mybookings_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     for b in bookings:
         label = f"{b.date} {b.start_time}–{b.end_time} | {b.title}"
         buttons.append([InlineKeyboardButton(label, callback_data=f"myb_view:{b.id}")])
+    buttons.append([InlineKeyboardButton(
+        get_text(lang, "btn_delete_all"), callback_data="myb_delete_all_confirm"
+    )])
     buttons.append([InlineKeyboardButton(get_text(lang, "btn_menu"), callback_data="menu")])
 
     await query.edit_message_text(
@@ -272,12 +275,58 @@ async def edit_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     return ConversationHandler.END
 
 
+
+# ── Delete all bookings ───────────────────────────────────────────────────────
+
+async def delete_all_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Ask for confirmation before deleting all bookings."""
+    query = update.callback_query
+    await query.answer()
+    lang    = _lang(context)
+    user_id = update.effective_user.id
+    count   = len(db.get_user_bookings(user_id))
+
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(get_text(lang, "btn_delete_all_yes"), callback_data="myb_delete_all_yes"),
+            InlineKeyboardButton(get_text(lang, "btn_cancel"),         callback_data="mybookings"),
+        ],
+    ])
+    await query.edit_message_text(
+        get_text(lang, "delete_all_confirm", count=count),
+        parse_mode="Markdown",
+        reply_markup=keyboard,
+    )
+
+
+async def delete_all_execute(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Delete all upcoming bookings for the user."""
+    query   = update.callback_query
+    await query.answer()
+    lang    = _lang(context)
+    user_id = update.effective_user.id
+    bookings = db.get_user_bookings(user_id)
+
+    deleted = 0
+    for b in bookings:
+        if db.delete_booking(b.id):
+            deleted += 1
+
+    await query.edit_message_text(
+        get_text(lang, "delete_all_done", count=deleted),
+        parse_mode="Markdown",
+        reply_markup=_back_menu(lang),
+    )
+
+
 # ── Registration ──────────────────────────────────────────────────────────────
 
 def register(application) -> None:
     application.add_handler(CallbackQueryHandler(mybookings_entry,       pattern="^mybookings$"))
     application.add_handler(CallbackQueryHandler(view_booking,           pattern=r"^myb_view:"))
     application.add_handler(CallbackQueryHandler(cancel_booking_handler, pattern=r"^myb_cancel:"))
+    application.add_handler(CallbackQueryHandler(delete_all_confirm,     pattern="^myb_delete_all_confirm$"))
+    application.add_handler(CallbackQueryHandler(delete_all_execute,     pattern="^myb_delete_all_yes$"))
 
     edit_conv = ConversationHandler(
         entry_points=[CallbackQueryHandler(edit_entry, pattern=r"^myb_edit:")],
