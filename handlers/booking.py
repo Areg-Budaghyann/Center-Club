@@ -28,6 +28,14 @@ from services.schedule_service import get_free_slots
 
 logger = logging.getLogger(__name__)
 
+
+def _esc(text: str) -> str:
+    """Escape special chars in user-provided text before inserting into Markdown."""
+    for ch in ["_", "*", "`", "["]:
+        text = text.replace(ch, f"\\{ch}")
+    return text
+
+
 WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 
 
@@ -421,8 +429,8 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                            day=day_name,
                            start=new_booking.start_time,
                            end=new_booking.end_time,
-                           title=new_booking.title,
-                           user=new_booking.username)
+                           title=_esc(new_booking.title),
+                           user=_esc(new_booking.username))
             )
             await context.bot.send_message(
                 chat_id=uid,
@@ -439,7 +447,7 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 chat_id=GROUP_CHAT_ID,
                 text=get_text("en", "group_notification", day=day_name,
                               start=new_booking.start_time, end=new_booking.end_time,
-                              title=new_booking.title, user=new_booking.username),
+                              title=_esc(new_booking.title), user=_esc(new_booking.username)),
                 parse_mode="Markdown",
             )
         except Exception as exc:
