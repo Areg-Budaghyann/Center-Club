@@ -68,12 +68,10 @@ def _has_conflict(date_str, start_hour, duration, exclude_id=None):
 def _kb_month(lang: str) -> InlineKeyboardMarkup:
     today = date.today()
     rows, row = [], []
-    for i in range(12):
-        total = today.month - 1 + i
-        year  = today.year + total // 12
-        month = total % 12 + 1
-        label = f"{MONTH_SHORT[lang][month-1]} {str(year)[2:]}"
-        row.append(InlineKeyboardButton(label, callback_data=f"cal_month:{year}:{month}"))
+    # Show months from current month through December of the current year only
+    for month in range(today.month, 13):
+        label = MONTH_SHORT[lang][month - 1]   # just "Mar", "Apr" — no year suffix
+        row.append(InlineKeyboardButton(label, callback_data=f"cal_month:{today.year}:{month}"))
         if len(row) == 3:
             rows.append(row)
             row = []

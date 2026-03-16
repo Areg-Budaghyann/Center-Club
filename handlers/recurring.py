@@ -32,7 +32,7 @@ from telegram.ext import (
 
 from config import ADMIN_IDS
 from database import create_recurring_bookings
-from translations import get_text, MONTH_NAMES, WEEKDAY_NAMES, DEFAULT_LANG
+from translations import get_text, MONTH_NAMES, MONTH_SHORT, WEEKDAY_NAMES, DEFAULT_LANG
 from handlers.booking import _lang
 
 WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
@@ -83,14 +83,10 @@ def _kb_month_picker(prefix: str, lang: str) -> InlineKeyboardMarkup:
     """Rolling 12-month grid. prefix is used in callback_data to distinguish
     from-month vs to-month pickers."""
     today = date.today()
-    names = MONTH_NAMES[lang]
     rows, row = [], []
-    for i in range(12):
-        total = today.month - 1 + i
-        year  = today.year + total // 12
-        month = total % 12 + 1
-        label = f"{names[month-1][:3]} {str(year)[2:]}"
-        row.append(InlineKeyboardButton(label, callback_data=f"{prefix}:{year}:{month}"))
+    for month in range(today.month, 13):
+        label = MONTH_SHORT[lang][month - 1]   # just "Mar", "Apr" — no year
+        row.append(InlineKeyboardButton(label, callback_data=f"{prefix}:{today.year}:{month}"))
         if len(row) == 3:
             rows.append(row)
             row = []
@@ -326,7 +322,7 @@ async def confirm_recurring(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         ]),
     )
 
-    context.user_data.clear()
+    lang = context.user_data.get("lang"); context.user_data.clear(); context.user_data["lang"] = lang
     return ConversationHandler.END
 
 
@@ -338,7 +334,7 @@ async def rec_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
     lang = _lang(context)
-    context.user_data.clear()
+    lang = context.user_data.get("lang"); context.user_data.clear(); context.user_data["lang"] = lang
     await query.edit_message_text(
         "Recurring booking cancelled.",
         reply_markup=InlineKeyboardMarkup([

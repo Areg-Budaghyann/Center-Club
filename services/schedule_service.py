@@ -64,7 +64,7 @@ def build_weekly_schedule(reference_date: date | None = None) -> str:
 
 # ── Monthly schedule ──────────────────────────────────────────────────────────
 
-def build_monthly_schedule(year: int, month: int, lang: str = "en") -> str:
+def build_monthly_schedule(year: int, month: int) -> str:
     """Return a compact monthly schedule string."""
     from calendar import monthrange
 
@@ -88,8 +88,7 @@ def build_monthly_schedule(year: int, month: int, lang: str = "en") -> str:
             lines.append("")
 
     if len(lines) == 2:
-        from translations import get_text
-        lines.append(get_text(lang, "no_bookings_this_month"))
+        lines.append("_No bookings this month._")
 
     return "\n".join(lines).strip()
 
