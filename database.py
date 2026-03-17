@@ -22,8 +22,14 @@ logger = logging.getLogger(__name__)
 # ── Connection factory ────────────────────────────────────────────────────────
 
 def _connect() -> sqlite3.Connection:
-    """Open a connection with row_factory and WAL mode enabled."""
-    conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
+    """Open a connection with row_factory and WAL mode enabled.
+    Creates the directory if it doesn't exist (fixes Railway /data mount issues).
+    """
+    import os
+    db_dir = os.path.dirname(DATABASE_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+    conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA foreign_keys=ON;")

@@ -14,12 +14,13 @@ Responsibilities:
 import logging
 import os
 
-from telegram.ext import Application
+from telegram.ext import Application, MessageHandler, filters
 
 import database
 from config import BOT_TOKEN
 from handlers import start, booking, schedule, mybookings, recurring
 from scheduler.reminders import start_scheduler
+from scheduler.log_bot import log_start, log_error
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -43,7 +44,7 @@ async def _track_user(update, context) -> None:
 
 def build_application() -> Application:
     """Wire everything together and return the Application."""
-    app = Application.builder().token(BOT_TOKEN).build()
+    app = Application.builder().token(BOT_TOKEN).concurrent_updates(True).build()
 
     # Track every user automatically before any handler runs
     from telegram.ext import TypeHandler
@@ -56,6 +57,17 @@ def build_application() -> Application:
     mybookings.register(app)    # ConversationHandler for edit, simple handlers for list/cancel
     schedule.register(app)      # Schedule & free-time
     start.register(app)         # /start + menu + help (catch-all last)
+
+    # Auto-delete any text message sent outside of a conversation flow
+    # Uses group=1 so ConversationHandlers (group=0) always get priority
+    async def _auto_delete(update, context):
+        try:
+            await update.message.delete()
+        except Exception:
+            pass
+
+    from telegram.ext import MessageHandler as _MH, filters as _f
+    app.add_handler(_MH(_f.TEXT & ~_f.COMMAND, _auto_delete), group=1)
 
     return app
 
@@ -70,7 +82,25 @@ def main() -> None:
     # 3. Start reminder scheduler
     start_scheduler(app.bot)
 
-    # 4. Determine run mode
+    # 4. Log bot startup to Telegram channel
+    import asyncio
+    try:
+        asyncio.get_event_loop().run_until_complete(log_start(app.bot))
+    except Exception:
+        pass
+
+    # 5. Global error handler — sends all unhandled errors to log channel
+    async def _error_handler(update, context) -> None:
+        await log_error(
+            context.bot,
+            f"Unhandled error (user: {update.effective_user.username if update and update.effective_user else 'unknown'})",
+            context.error,
+        )
+        logger.error("Unhandled error", exc_info=context.error)
+
+    app.add_error_handler(_error_handler)
+
+    # 6. Determine run mode
     webhook_url = os.getenv("WEBHOOK_URL")  # e.g. https://myapp.railway.app
 
     if webhook_url:
@@ -86,7 +116,7 @@ def main() -> None:
     else:
         # ── Polling mode (local development) ──────────────────────────────
         logger.info("Starting polling…")
-        app.run_polling(drop_pending_updates=True)
+        app.run_polling(drop_pending_updates=True, pool_timeout=30, connect_timeout=30, read_timeout=30)
 
 
 if __name__ == "__main__":

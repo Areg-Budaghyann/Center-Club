@@ -21,7 +21,8 @@ from config import (
     STATE_EDIT_PICK_FIELD, STATE_EDIT_ENTER_VALUE,
 )
 from services.booking_service import cancel_booking, edit_booking
-from translations import get_text, DEFAULT_LANG
+import calendar as _calendar
+from translations import get_text, DEFAULT_LANG, MONTH_SHORT
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,6 @@ async def mybookings_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if not bookings:
         await query.edit_message_text(
             get_text(lang, "my_bookings_empty"),
-            parse_mode="Markdown",
             reply_markup=_back_menu(lang),
         )
         return
@@ -63,7 +63,6 @@ async def mybookings_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     await query.edit_message_text(
         get_text(lang, "my_bookings_title"),
-        parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(buttons),
     )
 
@@ -131,7 +130,6 @@ async def edit_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     ])
     await query.edit_message_text(
         get_text(lang, "edit_title"),
-        parse_mode="Markdown",
         reply_markup=keyboard,
     )
     return STATE_EDIT_PICK_FIELD
@@ -156,7 +154,6 @@ async def edit_pick_field(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         buttons.append([InlineKeyboardButton(get_text(lang, "btn_back"), callback_data=f"myb_edit:{booking_id}")])
         await query.edit_message_text(
             get_text(lang, "edit_pick_duration", duration=b.duration),
-            parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(buttons),
         )
         return STATE_EDIT_ENTER_VALUE
@@ -171,34 +168,89 @@ async def edit_pick_field(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         buttons.append([InlineKeyboardButton(get_text(lang, "btn_back"), callback_data=f"myb_edit:{booking_id}")])
         await query.edit_message_text(
             get_text(lang, "edit_pick_start_time", start_time=b.start_time),
-            parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(buttons),
         )
         return STATE_EDIT_ENTER_VALUE
 
     elif field == "date":
+        # Show month picker first — same pattern as booking flow
         today = date.today()
-        buttons, row = [], []
-        for i in range(14):
-            d = today + timedelta(days=i)
-            row.append(InlineKeyboardButton(d.strftime("%a %d %b"), callback_data=f"edit_date:{d.isoformat()}"))
+        rows, row = [], []
+        for month in range(today.month, 13):
+            label = MONTH_SHORT[lang][month - 1]
+            row.append(InlineKeyboardButton(label, callback_data=f"edit_month:{today.year}:{month}"))
             if len(row) == 3:
-                buttons.append(row); row = []
-        if row: buttons.append(row)
-        buttons.append([InlineKeyboardButton(get_text(lang, "btn_back"), callback_data=f"myb_edit:{booking_id}")])
+                rows.append(row); row = []
+        if row: rows.append(row)
+        rows.append([InlineKeyboardButton(get_text(lang, "btn_back"), callback_data=f"myb_edit:{booking_id}")])
+        context.user_data["edit_booking_id"] = booking_id
         await query.edit_message_text(
             get_text(lang, "edit_pick_date", date=b.date),
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup(buttons),
+            reply_markup=InlineKeyboardMarkup(rows),
         )
         return STATE_EDIT_ENTER_VALUE
 
     else:  # title
-        await query.edit_message_text(
+        msg = await query.edit_message_text(
             get_text(lang, "edit_pick_title", title=b.title),
-            parse_mode="Markdown",
         )
+        context.user_data["edit_title_msg_id"] = msg.message_id
+        context.user_data["edit_title_chat_id"] = query.message.chat_id
         return STATE_EDIT_ENTER_VALUE
+
+
+async def edit_pick_month(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """User picked a month while editing booking date — show day grid."""
+    query = update.callback_query
+    await query.answer()
+    lang       = _lang(context)
+    _, year_s, month_s = query.data.split(":")
+    year, month = int(year_s), int(month_s)
+    booking_id = context.user_data.get("edit_booking_id")
+    today = date.today()
+
+
+    # Build calendar day grid
+    WEEKDAY_HEADERS = {
+    "en": ["Mon", "Tus", "Wed", "Thr", "Fri", "Sat", "Sun"],
+    "ru": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
+    "hy": ["Երկ", "Երք", "Չոր", "Հին", "Ուրբ", "Շբթ", "Կիր"],
+}
+    headers = WEEKDAY_HEADERS.get(lang, WEEKDAY_HEADERS["en"])
+    rows = [[InlineKeyboardButton(h, callback_data="edit_cal_noop") for h in headers]]
+
+    for week in _calendar.monthcalendar(year, month):
+        row = []
+        for day_num in week:
+            if day_num == 0:
+                row.append(InlineKeyboardButton(" ", callback_data="edit_cal_noop"))
+            else:
+                d = date(year, month, day_num)
+                if d < today:
+                    row.append(InlineKeyboardButton(str(day_num), callback_data="edit_cal_past"))
+                else:
+                    row.append(InlineKeyboardButton(str(day_num), callback_data=f"edit_date:{d.isoformat()}"))
+        rows.append(row)
+
+    rows.append([InlineKeyboardButton(get_text(lang, "btn_back"), callback_data=f"edit_field:date")])
+    month_label = f"{MONTH_SHORT[lang][month-1]} {year}"
+    await query.edit_message_text(
+        f"📅 {month_label}",
+        reply_markup=InlineKeyboardMarkup(rows),
+    )
+    return STATE_EDIT_ENTER_VALUE
+
+
+async def edit_cal_noop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.callback_query.answer()
+    return STATE_EDIT_ENTER_VALUE
+
+
+async def edit_cal_past(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = _lang(context)
+    await update.callback_query.answer(get_text(lang, "past_day_alert"), show_alert=True)
+    return STATE_EDIT_ENTER_VALUE
+
 
 
 async def edit_enter_value(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -212,22 +264,56 @@ async def edit_enter_value(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return STATE_EDIT_ENTER_VALUE
 
     new_title = update.message.text.strip()
+
+    # Delete the user's typed message to keep chat clean
+    try:
+        await update.message.delete()
+    except Exception:
+        pass
+
     if not new_title or len(new_title) > 80:
         await update.message.reply_text(get_text(lang, "title_invalid"))
         return STATE_EDIT_ENTER_VALUE
 
     updated, reason = edit_booking(booking_id, user_id, title=new_title)
-    if updated:
-        await update.message.reply_text(
-            get_text(lang, "edit_title_updated", details=updated.full_text()),
-            parse_mode="Markdown",
-            reply_markup=_back_menu(lang),
-        )
+    prompt_msg_id = context.user_data.get("edit_title_msg_id")
+    chat_id       = context.user_data.get("edit_title_chat_id", update.effective_chat.id)
+
+    if prompt_msg_id:
+        # Edit the "Current title / Type new title" message into the result
+        try:
+            if updated:
+                await context.bot.edit_message_text(
+                    chat_id    = chat_id,
+                    message_id = prompt_msg_id,
+                    text       = get_text(lang, "edit_title_updated", details=updated.full_text()),
+                    reply_markup = _back_menu(lang),
+                )
+            else:
+                await context.bot.edit_message_text(
+                    chat_id    = chat_id,
+                    message_id = prompt_msg_id,
+                    text       = get_text(lang, "edit_failed", reason=reason),
+                    reply_markup = _back_menu(lang),
+                )
+        except Exception:
+            # Fallback if edit fails
+            text = get_text(lang, "edit_title_updated", details=updated.full_text()) if updated else get_text(lang, "edit_failed", reason=reason)
+            await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=_back_menu(lang))
     else:
-        await update.message.reply_text(
-            get_text(lang, "edit_failed", reason=reason),
-            reply_markup=_back_menu(lang),
-        )
+        # Fallback: send new message
+        if updated:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=get_text(lang, "edit_title_updated", details=updated.full_text()),
+                reply_markup=_back_menu(lang),
+            )
+        else:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=get_text(lang, "edit_failed", reason=reason),
+                reply_markup=_back_menu(lang),
+            )
     return ConversationHandler.END
 
 
@@ -253,13 +339,11 @@ async def edit_inline_value(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if updated:
         await query.edit_message_text(
             get_text(lang, "edit_updated", details=updated.full_text()),
-            parse_mode="Markdown",
             reply_markup=_back_menu(lang),
         )
     else:
         await query.edit_message_text(
             get_text(lang, "edit_failed", reason=reason),
-            parse_mode="Markdown",
             reply_markup=_back_menu(lang),
         )
     return ConversationHandler.END
@@ -294,7 +378,6 @@ async def delete_all_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE)
     ])
     await query.edit_message_text(
         get_text(lang, "delete_all_confirm", count=count),
-        parse_mode="Markdown",
         reply_markup=keyboard,
     )
 
@@ -314,7 +397,6 @@ async def delete_all_execute(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     await query.edit_message_text(
         get_text(lang, "delete_all_done", count=deleted),
-        parse_mode="Markdown",
         reply_markup=_back_menu(lang),
     )
 
@@ -333,13 +415,27 @@ def register(application) -> None:
         states={
             STATE_EDIT_PICK_FIELD: [
                 CallbackQueryHandler(edit_pick_field, pattern=r"^edit_field:"),
+                CallbackQueryHandler(view_booking,    pattern=r"^myb_view:"),   # ← Back to booking detail
+                CallbackQueryHandler(mybookings_entry, pattern="^mybookings$"), # ← Back to list
             ],
             STATE_EDIT_ENTER_VALUE: [
+                CallbackQueryHandler(edit_pick_field,  pattern=r"^edit_field:"),
+                CallbackQueryHandler(edit_entry,       pattern=r"^myb_edit:"),  # ← Back to edit menu
+                CallbackQueryHandler(view_booking,     pattern=r"^myb_view:"),  # ← Back to booking detail
+                CallbackQueryHandler(mybookings_entry, pattern="^mybookings$"), # ← Back to list
+                CallbackQueryHandler(edit_pick_month,  pattern=r"^edit_month:\d+:\d+$"),
+                CallbackQueryHandler(edit_cal_noop,    pattern="^edit_cal_noop$"),
+                CallbackQueryHandler(edit_cal_past,    pattern="^edit_cal_past$"),
                 CallbackQueryHandler(edit_inline_value, pattern=r"^edit_(dur|hour|date):"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, edit_enter_value),
             ],
         },
-        fallbacks=[CallbackQueryHandler(edit_cancel, pattern="^menu$")],
+        fallbacks=[
+            CallbackQueryHandler(edit_cancel,      pattern="^menu$"),
+            CallbackQueryHandler(edit_entry,       pattern=r"^myb_edit:"),
+            CallbackQueryHandler(view_booking,     pattern=r"^myb_view:"),
+            CallbackQueryHandler(mybookings_entry, pattern="^mybookings$"),
+        ],
         per_message=False,
     )
     application.add_handler(edit_conv)

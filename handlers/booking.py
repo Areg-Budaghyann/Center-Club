@@ -29,11 +29,17 @@ from config import (
     STATE_PICK_DURATION, STATE_PICK_HOUR,
 )
 from services.booking_service import create_booking
+from scheduler.log_bot import log_booking
 from services.schedule_service import get_free_slots
 
 logger = logging.getLogger(__name__)
 
-WEEKDAY_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+# Weekday headers per language — short 2-letter abbreviations
+WEEKDAY_HEADERS = {
+    "en": ["Mon", "Tus", "Wed", "Thr", "Fri", "Sat", "Sun"],
+    "ru": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
+    "hy": ["Երկ", "Երք", "Չոր", "Հին", "Ուբր", "Շբթ", "Կիր"],
+}
 
 
 def _lang(context: ContextTypes.DEFAULT_TYPE) -> str:
@@ -91,7 +97,8 @@ def _kb_day(year: int, month: int, lang: str):
     # FIX: use plain MONTH_SHORT label — not *bold* MONTH_NAMES
     month_label = f"{MONTH_SHORT[lang][month - 1]} {year}"
 
-    header_row = [InlineKeyboardButton(h, callback_data="cal_noop") for h in WEEKDAY_HEADERS]
+    headers = WEEKDAY_HEADERS.get(lang, WEEKDAY_HEADERS["en"])
+    header_row = [InlineKeyboardButton(h, callback_data="cal_noop") for h in headers]
     rows = [header_row]
 
     for week in calendar.monthcalendar(year, month):
@@ -156,7 +163,8 @@ def _kb_duration(chosen_date: str, start_hour: int, lang: str) -> InlineKeyboard
     rows, row = [], []
     for d in range(MIN_DURATION_HOURS, MAX_DURATION_HOURS + 1):
         if d <= max_avail:
-            row.append(InlineKeyboardButton(f"{d}h", callback_data=f"dur:{d}"))
+            hour_suffix = {"en": "h", "ru": "ч", "hy": "ժ"}.get(lang, "h")
+            row.append(InlineKeyboardButton(f"{d}{hour_suffix}", callback_data=f"dur:{d}"))
         if len(row) == 3:
             rows.append(row)
             row = []
@@ -199,7 +207,6 @@ async def book_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     await query.edit_message_text(
         get_text(lang, "choose_month"),
-        parse_mode="Markdown",
         reply_markup=_kb_month(lang),
     )
     return STATE_PICK_DATE
@@ -229,7 +236,6 @@ async def back_to_month(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     lang = _lang(context)
     await query.edit_message_text(
         get_text(lang, "choose_month"),
-        parse_mode="Markdown",
         reply_markup=_kb_month(lang),
     )
     return STATE_PICK_DATE
@@ -244,7 +250,6 @@ async def pick_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     await query.edit_message_text(
         get_text(lang, "choose_time", date=chosen_date),
-        parse_mode="Markdown",
         reply_markup=_kb_hour(chosen_date, lang),
     )
     return STATE_PICK_HOUR
@@ -266,7 +271,6 @@ async def back_to_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     else:
         await query.edit_message_text(
             get_text(lang, "choose_month"),
-            parse_mode="Markdown",
             reply_markup=_kb_month(lang),
         )
     return STATE_PICK_DATE
@@ -297,10 +301,10 @@ async def pick_hour(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             b = database.get_booking_by_id(int(query.data.split(":")[1]))
             alert = (
                 get_text(lang, "slot_taken_detail",
-                         title=_esc(b.title),
+                         title=b.title,
                          start=b.start_time,
                          end=b.end_time,
-                         user=_esc(b.username))
+                         user=b.username)
                 if b else get_text(lang, "slot_taken_alert")
             )
         except Exception:
@@ -315,7 +319,6 @@ async def pick_hour(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     await query.edit_message_text(
         get_text(lang, "choose_duration", date=chosen_date, hour=f"{hour:02d}"),
-        parse_mode="Markdown",
         reply_markup=_kb_duration(chosen_date, hour, lang),
     )
     return STATE_PICK_DURATION
@@ -329,7 +332,6 @@ async def back_to_hour(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
     await query.edit_message_text(
         get_text(lang, "choose_time", date=chosen_date),
-        parse_mode="Markdown",
         reply_markup=_kb_hour(chosen_date, lang),
     )
     return STATE_PICK_HOUR
@@ -348,13 +350,15 @@ async def pick_duration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     start_hour  = context.user_data["start_hour"]
     context.user_data["duration"] = duration
 
-    # Plain text — no Markdown parse_mode to avoid any BadRequest
-    await query.edit_message_text(
+    # Edit the message and store its ID so enter_title can edit it again
+    msg = await query.edit_message_text(
         get_text(lang, "enter_title",
                  date=chosen_date,
                  hour=f"{start_hour:02d}",
                  duration=duration),
     )
+    # Store message_id so we can edit this message when user types title
+    context.user_data["title_prompt_msg_id"] = msg.message_id
     return STATE_ENTER_TITLE
 
 
@@ -366,12 +370,13 @@ async def back_to_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     start_hour  = context.user_data["start_hour"]
     duration    = context.user_data["duration"]
 
-    await query.edit_message_text(
+    msg = await query.edit_message_text(
         get_text(lang, "enter_title_again",
                  date=chosen_date,
                  hour=f"{start_hour:02d}",
                  duration=duration),
     )
+    context.user_data["title_prompt_msg_id"] = msg.message_id
     return STATE_ENTER_TITLE
 
 
@@ -422,20 +427,39 @@ async def enter_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     end_hour     = start_hour + duration
     display_name = update.effective_user.username or update.effective_user.first_name
 
-    # Step 4 — Send confirmation using chat_id directly (not reply_text)
-    # This works even after the user message is deleted
-    await context.bot.send_message(
-        chat_id    = chat_id,
-        text       = get_text(lang, "confirm_preview",
-                              title=_esc(title),
-                              date=chosen_date,
-                              start=f"{start_hour:02d}",
-                              end=f"{end_hour:02d}",
-                              duration=duration,
-                              user=_esc(display_name)),
-        parse_mode = "Markdown",
-        reply_markup = _kb_confirm(lang),
+    # Step 4 — Build preview using translation key (respects hy/ru/en)
+    preview = get_text(
+        lang, "confirm_preview",
+        title=title,
+        date=chosen_date,
+        start=f"{start_hour:02d}",
+        end=f"{end_hour:02d}",
+        duration=duration,
+        user=display_name,
     )
+    title_msg_id = context.user_data.get("title_prompt_msg_id")
+    if title_msg_id:
+        # Edit the existing "Step 4" message into the confirmation card
+        try:
+            await context.bot.edit_message_text(
+                chat_id      = chat_id,
+                message_id   = title_msg_id,
+                text         = preview,
+                reply_markup = _kb_confirm(lang),
+            )
+        except Exception:
+            # Fallback: send new message if edit fails
+            await context.bot.send_message(
+                chat_id      = chat_id,
+                text         = preview,
+                reply_markup = _kb_confirm(lang),
+            )
+    else:
+        await context.bot.send_message(
+            chat_id      = chat_id,
+            text         = preview,
+            reply_markup = _kb_confirm(lang),
+        )
 
     # Step 5 — Delete user message LAST, silently (never blocks flow)
     try:
@@ -464,9 +488,8 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             get_text(lang, "booking_conflict",
                      start=conflict.start_time,
                      end=conflict.end_time,
-                     title=_esc(conflict.title),
-                     user=_esc(conflict.username)),
-            parse_mode="Markdown",
+                     title=conflict.title,
+                     user=conflict.username),
             reply_markup=_kb_menu(lang),
         )
         return ConversationHandler.END
@@ -483,18 +506,29 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             get_text(lang, "booking_conflict",
                      start=db_conflict.start_time,
                      end=db_conflict.end_time,
-                     title=_esc(db_conflict.title),
-                     user=_esc(db_conflict.username)),
-            parse_mode="Markdown",
+                     title=db_conflict.title,
+                     user=db_conflict.username),
             reply_markup=_kb_menu(lang),
         )
         return ConversationHandler.END
 
     await query.edit_message_text(
         get_text(lang, "booking_confirmed", details=new_booking.full_text()),
-        parse_mode="Markdown",
         reply_markup=_kb_menu(lang),
     )
+
+    # Log to Telegram channel
+    try:
+        await log_booking(
+            context.bot,
+            username = new_booking.username,
+            title    = new_booking.title,
+            date     = new_booking.date,
+            start    = new_booking.start_time,
+            end      = new_booking.end_time,
+        )
+    except Exception:
+        pass
 
     # Broadcast to all users
     if True:
@@ -516,10 +550,16 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                day=day_name,
                                start=new_booking.start_time,
                                end=new_booking.end_time,
-                               title=_esc(new_booking.title),
-                               user=_esc(new_booking.username))
+                               title=new_booking.title,
+                               user=new_booking.username)
                 )
-                await context.bot.send_message(chat_id=uid, text=msg, parse_mode="Markdown")
+                await context.bot.send_message(
+                    chat_id=uid,
+                    text=msg,
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("Окей, понятно", callback_data="notif_dismiss")
+                    ]]),
+                )
             except Exception as exc:
                 logger.warning("Notify user_id=%d failed: %s", uid, exc)
 
@@ -531,9 +571,11 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                   day=day_name,
                                   start=new_booking.start_time,
                                   end=new_booking.end_time,
-                                  title=_esc(new_booking.title),
-                                  user=_esc(new_booking.username)),
-                    parse_mode="Markdown",
+                                  title=new_booking.title,
+                                  user=new_booking.username),
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("Окей, понятно", callback_data="notif_dismiss")
+                    ]]),
                 )
             except Exception as exc:
                 logger.warning("Group notification failed: %s", exc)
@@ -561,6 +603,20 @@ async def book_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         reply_markup=_kb_menu(lang),
     )
     return ConversationHandler.END
+
+
+# ===========================================================================
+# Notification dismiss
+# ===========================================================================
+
+async def notif_dismiss(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """User tapped 'Окей, понятно' — silently delete the notification message."""
+    query = update.callback_query
+    await query.answer()
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
 
 
 # ===========================================================================
@@ -604,3 +660,4 @@ def register(application) -> None:
         per_message=False,
     )
     application.add_handler(conv)
+    application.add_handler(CallbackQueryHandler(notif_dismiss, pattern="^notif_dismiss$"))

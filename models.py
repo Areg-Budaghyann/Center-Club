@@ -38,7 +38,7 @@ class Booking:
         return self.end_dt.strftime("%H:%M")
 
     def overlaps(self, other: "Booking") -> bool:
-        """Return True if this booking overlaps with *other* (same date assumed)."""
+        """Return True if this booking overlaps with other (same date assumed)."""
         return self.start_dt < other.end_dt and other.start_dt < self.end_dt
 
     def short_label(self) -> str:
@@ -48,7 +48,7 @@ class Booking:
     def full_text(self) -> str:
         """Multi-line detail card."""
         return (
-            f"📋 *{self.title}*\n"
+            f"📋 {self.title}\n"
             f"📅 {self.date}\n"
             f"🕐 {self.start_time} – {self.end_time} ({self.duration}h)\n"
             f"👤 @{self.username}"

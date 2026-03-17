@@ -48,7 +48,7 @@ T: dict[str, dict[str, str]] = {
     "en": {
 
         # ── START & MAIN MENU ───────────────────────────────────────────────
-        "start_message":         "👋 *Club Booking Bot*\n\nReserve a time slot in our shared club.\nWhat would you like to do?",
+        "start_message":         "Below you can find all the features available in this bot 📋\n\nIf you have any questions, press the “Help” button ℹ️\n\nPlan your time wisely ⏰✨",
         "choose_language":       "🌐 Choose language / Выберите язык / Ընտրեք լեզուն",
         "language_changed":      "✅ Language set to English.",
 
@@ -72,14 +72,14 @@ T: dict[str, dict[str, str]] = {
         ),
 
         # ── BOOKING FLOW ────────────────────────────────────────────────────
-        "choose_month":          "📅 *Step 1 of 4 — Choose a month:*",
+        "choose_month":          "📅Step 1 of 4 — Choose a month:",
         "choose_day":            "📅 *{month}* — choose a day:",
         "choose_time":           "📅 {date}\n\n🕐 Step 2 of 4 — Choose start time:",
-        "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ *Step 3 of 4 — Choose duration:*",
-        "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}h\n\n✏️ Step 4 of 4 — Enter event title:*\n\n Type the name of your event (e.g. Board Games, Team Meeting)",
-        "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}h\n\n✏️ Step 4 of 4 — Enter event title:*\n\n Type the name of your event",
+        "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ Step 3 of 4 — Choose duration:",
+        "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}h\n\n✏️ Step 4 of 4 — Enter event title:\n\n Type the name of your event (e.g. Board Games, Team Meeting)",
+        "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}h\n\n✏️ Step 4 of 4 — Enter event title:\n\n Type the name of your event",
         "confirm_preview":       "✅ Confirm your booking:*\n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}h)\n👤 @{user}",
-        "booking_confirmed":     "🎉 *Booking confirmed!*\n\n{details}",
+        "booking_confirmed":     "🎉 Booking confirmed!\n\n{details}",
         "booking_cancelled":     "Booking cancelled.",
 
         # ── BOOKING CONFLICT ────────────────────────────────────────────────
@@ -98,19 +98,19 @@ T: dict[str, dict[str, str]] = {
         "group_notification":    "📢 *New club booking*\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 *{title}*\n👤 Organiser: @{user}",
 
         # ── MY BOOKINGS ─────────────────────────────────────────────────────
-        "my_bookings_title":     "📌 *My bookings* — tap one to manage it:",
-        "my_bookings_empty":     "📌 *My bookings*\n\nYou have no upcoming bookings.",
+        "my_bookings_title":     "📌 My bookings — tap one to manage it:",
+        "my_bookings_empty":     "📌 My bookings\n\nYou have no upcoming bookings.",
         "booking_not_found":     "Booking not found.",
         "booking_deleted":       "✅ Booking cancelled.",
         "booking_delete_failed": "❌ Could not cancel: {reason}",
         "btn_delete_all":        "🗑 Delete all my bookings",
         "btn_delete_all_yes":    "✅ Yes, delete all",
-        "delete_all_confirm":    "⚠️ *Delete all bookings?*\n\nThis will cancel all *{count}* upcoming bookings. This cannot be undone.",
-        "delete_all_done":       "✅ *Done.* {count} booking(s) deleted.",
+        "delete_all_confirm":    "⚠️ Delete all bookings?\n\nThis will cancel all {count} upcoming bookings. This cannot be undone.",
+        "delete_all_done":       "✅ Done. {count} booking(s) deleted.",
 
 
         # ── EDIT BOOKING ────────────────────────────────────────────────────
-        "edit_title":            "✏️ *Edit booking* — what would you like to change?",
+        "edit_title":            "✏️ Edit booking — what would you like to change?",
         "edit_pick_duration":    "Current duration: *{duration}h*\n\nPick new duration:",
         "edit_pick_start_time":  "Current start: *{start_time}*\n\nPick new start time:",
         "edit_pick_date":        "Current date: *{date}*\n\nPick new date:",
@@ -139,17 +139,17 @@ T: dict[str, dict[str, str]] = {
         "btn_change_title":      "←  Change title",
 
         # ── SCHEDULE ────────────────────────────────────────────────────────
-        "schedule_title":        "📊 *View schedule* — pick a period:",
+        "schedule_title":        "📊 View schedule — pick a period:",
         "btn_this_week":         "📅 This week",
-        "btn_next_week":         "Next week",
+        "btn_next_week":         "📅Next week",
         "btn_this_month":        "📆 This month",
-        "btn_next_month":        "Next month",
+        "btn_next_month":        "📆Next month",
         "no_bookings_this_month":"_No bookings this month._",
         "no_bookings_day":       "📭 No bookings for this day.",
 
         # ── FREE TIME ───────────────────────────────────────────────────────
-        "free_time_title":       "🟢 *Free time* — pick a day:",
-        "free_slots_header":     "🟢 *Free slots on {day}:*\n",
+        "free_time_title":       "🟢 Free time — pick a day:",
+        "free_slots_header":     "🟢 Free slots on {day}:\n",
         "no_free_slots":         "_No free time available._",
 
         # ── VALIDATION ERRORS ───────────────────────────────────────────────
@@ -193,12 +193,13 @@ T: dict[str, dict[str, str]] = {
 
     },
 
+
     # -----------------------------------------------------------------------
     # RUSSIAN
     # -----------------------------------------------------------------------
     "ru": {
 
-        "start_message":         "👋 *Бот бронирования клуба*\n\nЗабронируйте время в нашем общем клубе.\nЧто вы хотите сделать?",
+        "start_message":         "Ниже представлены все возможности этого бота 📋\n\nЕсли у вас возникнут вопросы, нажмите кнопку «Помощь» ℹ️\n\nПланируйте своё время с умом ⏰✨",
         "choose_language":       "🌐 Choose language / Выберите язык / Ընտրեք լեզուն",
         "language_changed":      "✅ Язык изменён на Русский.",
 
@@ -219,14 +220,14 @@ T: dict[str, dict[str, str]] = {
             "Максимальная бронь: 6 часов"
         ),
 
-        "choose_month":          "📅 *Шаг 1 из 4 — Выберите месяц:*",
+        "choose_month":          "📅 Шаг 1 из 4 — Выберите месяц:",
         "choose_day":            "📅 *{month}* — выберите день:",
-        "choose_time":           "📅 {date}\n\n🕐 Шаг 2 из 4 — Выберите время начала:*",
-        "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ *Шаг 3 из 4 — Выберите длительность:",
-        "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ч\n\n✏️ Шаг 4 из 4 — Введите название: \n\n Например: Настольные игры, Встреча команды",
+        "choose_time":           "📅 {date}\n\n🕐 Шаг 2 из 4 — Выберите время начала:",
+        "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ Шаг 3 из 4 — Выберите длительность:",
+        "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ч\n\n✏️ Шаг 4 из 4 — Введите название: \n\nНапример: Настольные игры, Встреча команды",
         "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ч\n\n✏️ Шаг 4 из 4 — Введите название: \n\n_Введите название события_",
-        "confirm_preview":       "✅ *Подтвердите бронирование:*\n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}ч)\n👤 @{user}",
-        "booking_confirmed":     "🎉 *Бронирование подтверждено!*\n\n{details}",
+        "confirm_preview":       "✅ Подтвердите бронирование: \n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}ч)\n👤 @{user}",
+        "booking_confirmed":     "🎉 Бронирование подтверждено!\n\n{details}",
         "booking_cancelled":     "Бронирование отменено.",
 
         "booking_conflict":      (
@@ -242,17 +243,17 @@ T: dict[str, dict[str, str]] = {
 
         "group_notification":    "📢 *Новое бронирование клуба*\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 *{title}*\n👤 Организатор: @{user}",
 
-        "my_bookings_title":     "📌 *Мои брони* — нажмите для управления:",
-        "my_bookings_empty":     "📌 *Мои брони*\n\nУ вас нет предстоящих броней.",
+        "my_bookings_title":     "📌 Мои брони — нажмите для управления:",
+        "my_bookings_empty":     "📌 Мои брони\n\nУ вас нет предстоящих броней.",
         "booking_not_found":     "Бронирование не найдено.",
         "booking_deleted":       "✅ Бронирование отменено.",
         "booking_delete_failed": "❌ Не удалось отменить: {reason}",
         "btn_delete_all":        "🗑 Удалить все мои брони",
         "btn_delete_all_yes":    "✅ Да, удалить все",
-        "delete_all_confirm":    "⚠️ *Удалить все брони?*\n\nЭто отменит все *{count}* предстоящих броней. Отменить невозможно.",
-        "delete_all_done":       "✅ *Готово.* Удалено {count} бронирований.",
+        "delete_all_confirm":    "⚠️ Удалить все брони?\n\nЭто отменит все {count} предстоящих броней. Отменить невозможно.",
+        "delete_all_done":       "✅ Готово. Удалено {count} бронирований.",
 
-        "edit_title":            "✏️ *Редактировать бронь* — что изменить?",
+        "edit_title":            "✏️ Редактировать бронь — что изменить?",
         "edit_pick_duration":    "Текущая длительность: *{duration}ч*\n\nВыберите новую:",
         "edit_pick_start_time":  "Текущее время: *{start_time}*\n\nВыберите новое:",
         "edit_pick_date":        "Текущая дата: *{date}*\n\nВыберите новую:",
@@ -278,7 +279,7 @@ T: dict[str, dict[str, str]] = {
         "btn_menu":              "←  Меню",
         "btn_change_title":      "←  Изменить название",
 
-        "schedule_title":        "📊 *Расписание* — выберите период:",
+        "schedule_title":        "📊 Расписание — выберите период:",
         "btn_this_week":         "📅 Эта неделя",
         "btn_next_week":         "📅 Следующая неделя",
         "btn_this_month":        "📆 Этот месяц",
@@ -286,8 +287,8 @@ T: dict[str, dict[str, str]] = {
         "no_bookings_this_month":"_Броней в этом месяце нет._",
         "no_bookings_day":       "📭 На этот день броней нет.",
 
-        "free_time_title":       "🟢 *Свободное время* — выберите день:",
-        "free_slots_header":     "🟢 *Свободные слоты {day}:*\n",
+        "free_time_title":       "🟢 Свободное время — выберите день:",
+        "free_slots_header":     "🟢 Свободные слоты {day}:\n",
         "no_free_slots":         "_Свободного времени нет._",
 
         "title_empty":           "Пожалуйста, введите название события.",
@@ -297,7 +298,7 @@ T: dict[str, dict[str, str]] = {
         "error_message":         "Что-то пошло не так. Попробуйте ещё раз.",
         "no_permission":         "⛔ У вас нет прав для этой команды.",
 
-        "recurring_intro":       "📅 *Повторяющееся бронирование*\n\nКаждый *{weekday}* с *{start}* до *{end}*.\n\n*Шаг 1 — Выберите дату НАЧАЛА:*\n_(Сначала выберите месяц)_",
+        "recurring_intro":       "📅 Повторяющееся бронирование\n\nКаждый *{weekday}* с *{start}* до *{end}*.\n\n*Шаг 1 — Выберите дату НАЧАЛА:*\n_(Сначала выберите месяц)_",
         "recurring_pick_to":     "✅ Дата начала: *{from_date}*\n\n*Шаг 2 — Выберите дату КОНЦА:*\n_(Сначала выберите месяц)_",
         "recurring_pick_from_day": "📅 *{month}* — выберите день НАЧАЛА:",
         "recurring_pick_to_day": "📅 *{month}* — выберите день КОНЦА:",
@@ -315,8 +316,7 @@ T: dict[str, dict[str, str]] = {
     # ARMENIAN
     # -----------------------------------------------------------------------
     "hy": {
-
-        "start_message":         "👋 *Ակումբի ամրագրման բոտ*\n\n Ամրագրեք ակումբը ձեր նախընտրած օրը ձեր նախընտրած ժամին։",
+        "start_message": "Ներքևում կարող եք տեսնել այս բոտի բոլոր հնարավորությունները 📋 \n\nԵթե ունեք հարցեր, սեղմեք «Օգնություն» կոճակը ℹ️ \n\nՊլանավորեք ձեր ժամանակը խելամտորեն ⏰✨",
         "choose_language":       "🌐 Choose language / Выберите язык / Ընտրեք լեզուն",
         "language_changed":      "✅ Լեզուն փոխվել է հայերենի։",
 
@@ -337,14 +337,14 @@ T: dict[str, dict[str, str]] = {
             "Առավելագույն ամրագրում՝ 6 ժամ"
         ),
 
-        "choose_month":          "📅 *Քայլ 1 4-ից — Ընտրեք ամիսը:*",
+        "choose_month":          "📅 Քայլ 1 4-ից — Ընտրեք ամիսը:",
         "choose_day":            "📅 *{month}* — ընտրեք օրը:",
-        "choose_time":           "📅 {date}\n\n🕐 *Քայլ 2 4-ից — Ընտրեք մեկնարկի ժամը:*",
-        "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ *Քայլ 3 4-ից — Ընտրեք տևողությունը:*",
-        "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ժ\n\n✏️ Քայլ 4 4-ից — Մուտքագրեք անունը: \n\n_Օրինակ՝ Սեղանի խաղեր, Փոքր խումբ կամ ArtTherapy",
+        "choose_time":           "📅 {date}\n\n🕐 Քայլ 2 4-ից — Ընտրեք մեկնարկի ժամը:",
+        "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ Քայլ 3 4-ից — Ընտրեք տևողությունը:",
+        "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ժ\n\n✏️ Քայլ 4 4-ից — Մուտքագրեք անունը: \n\nՕրինակ՝ Սեղանի խաղեր կամ Փոքր խումբ",
         "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ժ\n\n✏️ Քայլ 4 4-ից — Մուտքագրեք անունը: \n\n_Մուտքագրեք միջոցառման անունը_",
-        "confirm_preview":       "✅ *Հաստատե՞լ ամրագրումը:*\n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}ժ)\n👤 @{user}",
-        "booking_confirmed":     "🎉 *Ամրագրումը հաստատված է!*\n\n{details}",
+        "confirm_preview":       "✅ Հաստատե՞լ ամրագրումը:\n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}ժ)\n👤 @{user}",
+        "booking_confirmed":     "🎉 Ամրագրումը հաստատված է!\n\n{details}",
         "booking_cancelled":     "Ամրագրումը չեղարկված է։",
 
         "booking_conflict":      (
@@ -360,18 +360,18 @@ T: dict[str, dict[str, str]] = {
 
         "group_notification":    "📢 *Ակումբի նոր ամրագրում*\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 *{title}*\n👤 Ամրագրում է: @{user}",
 
-        "my_bookings_title":     "📌 *Իմ ամրագրումները* — սեղմեք կառավարելու համար.",
-        "my_bookings_empty":     "📌 *Իմ ամրագրումները*\n\nԴուք չունեք առաջիկա ամրագրումներ։",
+        "my_bookings_title":     "📌 Իմ ամրագրումները — սեղմեք կառավարելու համար.",
+        "my_bookings_empty":     "📌 Իմ ամրագրումները\n\nԴուք չունեք առաջիկա ամրագրումներ։",
         "booking_not_found":     "Ամրագրումը չի գտնվել։",
         "booking_deleted":       "✅ Ամրագրումը չեղարկված է։",
         "booking_delete_failed": "❌ Չհաջողվեց չեղարկել. {reason}",
         "btn_delete_all":        "🗑 Չեղարկել իմ բոլոր ամրագրումները",
         "btn_delete_all_yes":    "✅ Այո, չեղարկել ամբողջը",
-        "delete_all_confirm":    "⚠️ *Չեղարկե՞լ ամբողջը*\n\nՍա կջնջի թվով *{count}* ձեր բոլոր ամրագրումները։",
-        "delete_all_done":       "✅ *Կատարված է։*",
+        "delete_all_confirm":    "⚠️ Չեղարկե՞լ ամբողջը\n\nՍա կջնջի թվով {count} ձեր բոլոր ամրագրումները։",
+        "delete_all_done":       "✅ Կատարված է։",
 
 
-        "edit_title":            "✏️ *Խմբագրել ամրագրումը* — ինչ փոխե՞լ:",
+        "edit_title":            "✏️ Խմբագրել ամրագրումը — ինչ փոխե՞լ:",
         "edit_pick_duration":    "Ընթացիկ տևողություն՝ *{duration}ժ*\n\nԸնտրեք նոր տևողություն:",
         "edit_pick_start_time":  "Ընթացիկ ժամ՝ *{start_time}*\n\nԸնտրեք նոր ժամ:",
         "edit_pick_date":        "Ընթացիկ ամսաթիվ՝ *{date}*\n\nԸնտրեք նոր ամսաթիվ:",
@@ -397,7 +397,7 @@ T: dict[str, dict[str, str]] = {
         "btn_menu":              "←  Մենյու",
         "btn_change_title":      "←  Փոխել անունը",
 
-        "schedule_title":        "📊 *Գրաֆիկ* — ընտրեք ժամանակահատված:",
+        "schedule_title":        "📊 Գրաֆիկ — ընտրեք ժամանակահատված:",
         "btn_this_week":         "📅 Այս շաբաթ",
         "btn_next_week":         "📅 Հաջորդ շաբաթ",
         "btn_this_month":        "📆 Այս ամիս",
@@ -405,9 +405,9 @@ T: dict[str, dict[str, str]] = {
         "no_bookings_this_month":"_Այս ամիս ամրագրումներ չկան։_",
         "no_bookings_day":       "📭 Այս օրվա համար ամրագրումներ չկան։",
 
-        "free_time_title":       "🟢 *Ազատ ժամեր* — ընտրեք օր:",
-        "free_slots_header":     "🟢 *Ազատ ժամեր {day}:*\n",
-        "no_free_slots":         "_Ազատ ժամ չկա։_",
+        "free_time_title":       "🟢 Ազատ ժամեր — ընտրեք օր:",
+        "free_slots_header":     "🟢 Ազատ ժամեր {day}:\n",
+        "no_free_slots":         "Ազատ ժամ չկա։",
 
         "title_empty":           "Խնդրում ենք մուտքագրել միջոցառման անունը։",
         "title_too_long":        "Անունը շատ երկար է ({length} նիշ)։ Առավելագույնը 80 նիշ։",

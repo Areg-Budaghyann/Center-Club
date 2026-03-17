@@ -154,7 +154,6 @@ async def recurring_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         f"*{RECURRING_START_DISPLAY}* to *{RECURRING_END_DISPLAY}*.\n\n"
         f"*Step 1 — Choose the START date:*\n"
         f"_(Pick the month first)_",
-        parse_mode="Markdown",
         reply_markup=_kb_month_picker("rec_from_month", lang),
     )
     return REC_PICK_FROM_MONTH
@@ -176,7 +175,6 @@ async def pick_from_month(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     keyboard, label = _kb_day_picker("rec_from_day", year, month, lang)
     await query.edit_message_text(
         f"📅 *{label}* — choose the START day:",
-        parse_mode="Markdown",
         reply_markup=keyboard,
     )
     return REC_PICK_FROM_DAY
@@ -192,7 +190,6 @@ async def pick_from_day(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     await query.edit_message_text(
         f"✅ Start date: *{chosen}*\n\n"
         f"*Step 2 — Choose the END date:*\n_(Pick the month first)_",
-        parse_mode="Markdown",
         reply_markup=_kb_month_picker("rec_to_month", lang),
     )
     return REC_PICK_TO_MONTH
@@ -214,7 +211,6 @@ async def pick_to_month(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     keyboard, label = _kb_day_picker("rec_to_day", year, month, lang)
     await query.edit_message_text(
         f"📅 *{label}* — choose the END day:",
-        parse_mode="Markdown",
         reply_markup=keyboard,
     )
     return REC_PICK_TO_DAY
@@ -234,7 +230,6 @@ async def pick_to_day(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         f"📅 *{from_date}* → *{chosen}*\n"
         f"🗓 Every *{wd_name}* · {RECURRING_START_DISPLAY}–{RECURRING_END_DISPLAY}\n\n"
         f"✏️ *Enter the event title:*\n_(e.g. Weekly Meeting)_",
-        parse_mode="Markdown",
     )
     return REC_ENTER_TITLE
 
@@ -274,7 +269,6 @@ async def enter_rec_title(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     )
     await update.message.reply_text(
         preview,
-        parse_mode="Markdown",
         reply_markup=_kb_confirm_rec(lang),
     )
     return REC_CONFIRM
@@ -316,7 +310,6 @@ async def confirm_recurring(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     lang = _lang(context)
     await query.edit_message_text(
         "\n".join(lines),
-        parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton(get_text(lang, "menu_button"), callback_data="menu")]
         ]),

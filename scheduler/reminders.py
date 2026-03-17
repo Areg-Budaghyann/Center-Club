@@ -12,7 +12,7 @@ import logging
 from datetime import datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from telegram import Bot
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import TelegramError
 
 import database as db
@@ -58,13 +58,13 @@ async def _send_reminders(bot: Bot) -> None:
         # ── 1. Personal reminder to the booking owner ─────────────────────
         owner_lang   = _user_lang(b.user_id)
         personal_msg = (
-            "⏰ *Reminder* — your booking starts in "
+            "⏰ Reminder — your booking starts in "
             + str(REMINDER_MINUTES_BEFORE)
             + " minutes!\n\n"
-            + "📋 *" + _esc(b.title) + "*\n"
+            + "📋 " + b.title + "\n"
             + "📅 " + b.date + "\n"
             + "🕐 " + b.start_time + " – " + b.end_time + "\n"
-            + "👤 @" + _esc(b.username)
+            + "👤 @" + b.username
         )
         try:
             await bot.send_message(
@@ -92,14 +92,17 @@ async def _send_reminders(bot: Bot) -> None:
                            day=day_name,
                            start=b.start_time,
                            end=b.end_time,
-                           title=_esc(b.title),
-                           user=_esc(b.username))
+                           title=b.title,
+                           user=b.username)
             )
             try:
                 await bot.send_message(
-                    chat_id    = uid,
-                    text       = headsup_msg,
-                    parse_mode = "Markdown",
+                    chat_id      = uid,
+                    text         = headsup_msg,
+                    parse_mode   = "Markdown",
+                    reply_markup = InlineKeyboardMarkup([[
+                        InlineKeyboardButton("Окей, понятно", callback_data="notif_dismiss")
+                    ]]),
                 )
             except TelegramError as exc:
                 logger.warning("Heads-up failed user_id=%d: %s", uid, exc)
@@ -115,8 +118,8 @@ async def _send_reminders(bot: Bot) -> None:
                                    day=day_name,
                                    start=b.start_time,
                                    end=b.end_time,
-                                   title=_esc(b.title),
-                                   user=_esc(b.username))
+                                   title=b.title,
+                                   user=b.username)
                     ),
                     parse_mode = "Markdown",
                 )

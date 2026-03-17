@@ -1,61 +1,47 @@
 """
 handlers/start.py
 -----------------
-/start command, welcome screen, language picker, and main menu.
+/start command, language picker, and main menu.
 
-Flow for new users:
-    /start  ->  Welcome screen  ->  [Continue]  ->  Language picker  ->  Main menu
-
-Flow for returning users:
-    /start  ->  Main menu directly (language already saved)
-
-HOW TO EDIT THE WELCOME TEXT
-------------------------------
-Find the WELCOME_TEXT variable below and replace it with your own text.
-Use *bold* and _italic_ for formatting.
-The text will be shown in Armenian to all new users before they pick a language.
+Flow for new users:    /start -> language picker -> main menu
+Flow for returning:    /start -> main menu directly
 """
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
+from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
 from translations import get_text, DEFAULT_LANG
 
 MENU_CALLBACK = "menu"
 
-# ===========================================================================
-# WELCOME TEXT — edit this to write your own description
-# ===========================================================================
-# This message is shown ONCE to every new user when they first open the bot.
-# Supports Telegram Markdown: *bold*, _italic_, `code`
-# Replace the text below with your own words in Armenian.
-# ===========================================================================
-
-WELCOME_TEXT = (
-    "🏢 *Center Club*\n\n"
-    "Բари галуст!\n\n"
-    "✏️ _Айстег гри ко нкарагрутюнт айеренов — инчу е стеղцвел айс бот у "
-    "инч кароголутюннер ка ноутвор оgтакорцогнери хамар:_\n\n"
-    "Оринак:\n"
-    "«Айс ботн у ствел мер чентеракlубум офисы арагагравар пронируму "
-    "хамар: Ка горцацу ев дицел азат жамер аканатесел нарарел ев челаркел "
-    "кнджаинтерут'юннерен:»"
-)
-
-# ===========================================================================
-
-
-def _kb_welcome() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("▶️  Շарунакел", callback_data="welcome_continue")]
-    ])
+# ── Help texts per language — exact text, no modifications ───────────────────
+HELP_TEXTS = {
+    "hy": (
+        "📅 Ամրագրել ակումբը — քայլ առ քայլ ընտրել և ամրագրել ժամանակը։\n\n"
+        "📊 Տեսնել ակումբի գրաֆիկը— տեսնել ամրագրումները շաբաթվա կամ ամսվա կտրվածքով:\n\n"
+        "📌 Իմ ամրագրումները — տեսնել, փոփոխել կամ չեղարկել ձեր ամրագրումները։\n\n"
+        "🟢 Ազատ ժամանակ — ստուգել, թե որ ժամերն են հասանելի։"
+    ),
+    "ru": (
+        "📅 Забронировать клуб — пошагово выбрать и зарезервировать время.\n\n"
+        "📊 Посмотреть расписание — увидеть бронирования на неделю или месяц.\n\n"
+        "📌 Мои бронирования — просмотреть, изменить или отменить свои брони.\n\n"
+        "🟢 Свободное время — проверить, какие часы доступны."
+    ),
+    "en": (
+        "📅 Book club — reserve a time slot step by step.\n\n"
+        "📊 View schedule — see weekly or monthly bookings.\n\n"
+        "📌 My bookings — view, edit, or cancel your reservations.\n\n"
+        "🟢 Free time — check what hours are available."
+    ),
+}
 
 
 def _kb_language() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🇬🇧  English",  callback_data="lang:en")],
         [InlineKeyboardButton("🇷🇺  Русский",  callback_data="lang:ru")],
-        [InlineKeyboardButton("🇦🇲  Հայերեն", callback_data="lang:hy")],
+        [InlineKeyboardButton("🇦🇲  Հայերեն",  callback_data="lang:hy")],
     ])
 
 
@@ -65,41 +51,36 @@ def _main_menu_keyboard(lang: str = DEFAULT_LANG) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(t("btn_book_office"),   callback_data="book")],
         [InlineKeyboardButton(t("btn_view_schedule"), callback_data="schedule")],
         [InlineKeyboardButton(t("btn_my_bookings"),   callback_data="mybookings")],
+        [InlineKeyboardButton(t("btn_free_time"),     callback_data="freetime")],
         [InlineKeyboardButton(t("btn_help"),          callback_data="help")],
         [InlineKeyboardButton(t("btn_language"),      callback_data="choose_lang")],
     ])
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Delete the /start command message to keep chat clean
+    try:
+        await update.message.delete()
+    except Exception:
+        pass
+
     lang = context.user_data.get("lang")
     if not lang:
-        # New user: show welcome screen
-        await update.message.reply_text(
-            WELCOME_TEXT,
-            parse_mode="Markdown",
-            reply_markup=_kb_welcome(),
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=get_text("en", "choose_language"),
+            reply_markup=_kb_language(),
         )
     else:
-        # Returning user: go straight to menu
-        await update.message.reply_text(
-            get_text(lang, "start_message"),
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=get_text(lang, "start_message"),
             parse_mode="Markdown",
             reply_markup=_main_menu_keyboard(lang),
         )
 
 
-async def welcome_continue(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """User tapped Continue — show language picker."""
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(
-        "🌐 Ընтреk лезун / Выберите язык / Choose language",
-        reply_markup=_kb_language(),
-    )
-
-
 async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Store chosen language and show the main menu."""
     query = update.callback_query
     await query.answer()
     lang = query.data.split(":")[1]
@@ -126,27 +107,39 @@ async def choose_lang_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     query = update.callback_query
     await query.answer()
     await query.edit_message_text(
-        "🌐 Choose language / Выберите язык / Ընտրեք լեզուն",
+        get_text("en", "choose_language"),
         reply_markup=_kb_language(),
     )
 
 
 async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Help — shows exact text in user's selected language."""
     query = update.callback_query
     await query.answer()
+
+    # Language is stored in context.user_data["lang"] by set_language()
+    # Defaults to "en" if not set
     lang = context.user_data.get("lang", DEFAULT_LANG)
+
+    # Select exact help text for this language
+    help_text = HELP_TEXTS.get(lang, HELP_TEXTS["en"])
+
     await query.edit_message_text(
-        get_text(lang, "help_text"),
-        parse_mode="Markdown",
+        help_text,
         reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton(get_text(lang, "btn_menu"), callback_data=MENU_CALLBACK)
         ]]),
     )
 
 
-def register(application) -> None:
+async def post_init(application: Application) -> None:
+    await application.bot.set_my_commands([
+        BotCommand("start", "Open the bot"),
+    ])
+
+
+def register(application: Application) -> None:
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CallbackQueryHandler(welcome_continue,     pattern="^welcome_continue$"))
     application.add_handler(CallbackQueryHandler(set_language,         pattern=r"^lang:(en|ru|hy)$"))
     application.add_handler(CallbackQueryHandler(menu_callback,        pattern=f"^{MENU_CALLBACK}$"))
     application.add_handler(CallbackQueryHandler(choose_lang_callback, pattern="^choose_lang$"))

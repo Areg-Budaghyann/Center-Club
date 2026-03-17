@@ -24,12 +24,12 @@ def _date_range(start: date, end: date) -> Iterator[date]:
         current += timedelta(days=1)
 
 
-DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+from translations import WEEKDAY_NAMES
 
 
 # ── Weekly schedule ───────────────────────────────────────────────────────────
 
-def build_weekly_schedule(reference_date: date | None = None) -> str:
+def build_weekly_schedule(reference_date: date | None = None, lang: str = "en") -> str:
     """
     Return a formatted string of the week containing reference_date.
     Defaults to the current week (Monday–Sunday).
@@ -47,16 +47,18 @@ def build_weekly_schedule(reference_date: date | None = None) -> str:
     for b in bookings:
         by_date.setdefault(b.date, []).append(b)
 
-    lines = [f"📅 *Schedule: {monday.strftime('%b %d')} – {sunday.strftime('%b %d')}*\n"]
+    day_names = WEEKDAY_NAMES.get(lang, WEEKDAY_NAMES["en"])
+    free_word  = {"en": "Free", "ru": "Свободно", "hy": "Ազատ"}.get(lang, "Free")
+    lines = [f"📅 {monday.strftime('%d.%m')} – {sunday.strftime('%d.%m')}\n"]
     for d in _date_range(monday, sunday):
         day_str = d.isoformat()
-        day_label = f"*{DAY_NAMES[d.weekday()]}* ({d.strftime('%b %d')})"
+        day_label = f"{day_names[d.weekday()]} {d.strftime('%d.%m')}"
         if day_str in by_date:
             lines.append(day_label)
             for b in by_date[day_str]:
                 lines.append(f"  {b.short_label()}")
         else:
-            lines.append(f"{day_label}\n  _Free_")
+            lines.append(f"{day_label}\n  {free_word}")
         lines.append("")  # blank line between days
 
     return "\n".join(lines).strip()
@@ -64,7 +66,7 @@ def build_weekly_schedule(reference_date: date | None = None) -> str:
 
 # ── Monthly schedule ──────────────────────────────────────────────────────────
 
-def build_monthly_schedule(year: int, month: int) -> str:
+def build_monthly_schedule(year: int, month: int, lang: str = "en") -> str:
     """Return a compact monthly schedule string."""
     from calendar import monthrange
 
@@ -76,19 +78,21 @@ def build_monthly_schedule(year: int, month: int) -> str:
     for b in bookings:
         by_date.setdefault(b.date, []).append(b)
 
-    month_name = first.strftime("%B %Y")
-    lines = [f"📅 *{month_name}*\n"]
+    from translations import MONTH_NAMES
+    month_name = MONTH_NAMES.get(lang, MONTH_NAMES["en"])[month - 1]
+    lines = [f"📅 {month_name} {year}\n"]
     for d in _date_range(first, last):
         day_str = d.isoformat()
         if day_str in by_date:
-            day_label = f"*{d.strftime('%d %a')}*"
+            day_label = f"{d.day:02d}"
             lines.append(day_label)
             for b in by_date[day_str]:
                 lines.append(f"  {b.short_label()}")
             lines.append("")
 
-    if len(lines) == 2:
-        lines.append("_No bookings this month._")
+    if len(lines) == 1:  # only the header line — no bookings found
+        from translations import get_text
+        lines.append(get_text(lang, "no_bookings_this_month"))
 
     return "\n".join(lines).strip()
 
@@ -122,7 +126,7 @@ def get_free_slots(target_date: date) -> list[tuple[str, str]]:
 
 def format_free_slots(target_date: date) -> str:
     slots = get_free_slots(target_date)
-    header = f"🟢 *Free slots on {target_date.strftime('%A, %b %d')}:*\n"
+    header = f"🟢 {target_date.strftime('%d.%m')}:\n"
     if not slots:
         return header + "_No free time available._"
     body = "\n".join(f"  {s} – {e}" for s, e in slots)
