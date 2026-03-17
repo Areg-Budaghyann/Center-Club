@@ -44,7 +44,7 @@ async def _track_user(update, context) -> None:
 
 def build_application() -> Application:
     """Wire everything together and return the Application."""
-    app = Application.builder().token(BOT_TOKEN).concurrent_updates(True).build()
+    app = Application.builder().token(BOT_TOKEN).concurrent_updates(8).build()
 
     # Track every user automatically before any handler runs
     from telegram.ext import TypeHandler
@@ -91,6 +91,11 @@ def main() -> None:
 
     # 5. Global error handler — sends all unhandled errors to log channel
     async def _error_handler(update, context) -> None:
+        from telegram.error import Conflict, NetworkError
+        # Ignore Conflict errors — expected during Railway restarts
+        if isinstance(context.error, (Conflict, NetworkError)):
+            logger.warning("Ignored expected error: %s", context.error)
+            return
         await log_error(
             context.bot,
             f"Unhandled error (user: {update.effective_user.username if update and update.effective_user else 'unknown'})",
@@ -100,23 +105,24 @@ def main() -> None:
 
     app.add_error_handler(_error_handler)
 
-    # 6. Determine run mode
-    webhook_url = os.getenv("WEBHOOK_URL")  # e.g. https://myapp.railway.app
+    # 6. Delete any existing webhook and run polling
+    import asyncio, time
 
-    if webhook_url:
-        # ── Webhook mode (production) ──────────────────────────────────────
-        port = int(os.getenv("PORT", "8443"))
-        logger.info("Starting webhook on port %d", port)
-        app.run_webhook(
-            listen       = "0.0.0.0",
-            port         = port,
-            webhook_url  = f"{webhook_url}/{BOT_TOKEN}",
-            url_path     = BOT_TOKEN,
-        )
-    else:
-        # ── Polling mode (local development) ──────────────────────────────
-        logger.info("Starting polling…")
-        app.run_polling(drop_pending_updates=True, pool_timeout=30, connect_timeout=30, read_timeout=30)
+    async def _delete_webhook():
+        await app.bot.delete_webhook(drop_pending_updates=True)
+
+    try:
+        asyncio.get_event_loop().run_until_complete(_delete_webhook())
+        logger.info("Webhook deleted, waiting 5s before polling…")
+    except Exception as e:
+        logger.warning("Could not delete webhook: %s", e)
+
+    time.sleep(5)
+    logger.info("Starting polling…")
+    app.run_polling(
+        drop_pending_updates = True,
+        allowed_updates      = ["message", "callback_query"],
+    )
 
 
 if __name__ == "__main__":
