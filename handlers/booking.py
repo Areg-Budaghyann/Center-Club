@@ -32,6 +32,33 @@ from services.booking_service import create_booking
 from scheduler.log_bot import log_booking
 from services.schedule_service import get_free_slots
 
+
+def _display_name(user) -> str:
+    """
+    Returns correct display name for a Telegram user.
+    - Has username  → @username
+    - No username   → first_name + last_name (or just first_name)
+    Never shows @None or wrong values.
+    """
+    if user.username:
+        return f"@{user.username}"
+    elif user.first_name and user.last_name:
+        return f"{user.first_name} {user.last_name}"
+    else:
+        return user.first_name or str(user.id)
+
+
+def _storage_name(user) -> str:
+    """Name stored in DB — no @ prefix, used for bookings table."""
+    if user.username:
+        return user.username
+    elif user.first_name and user.last_name:
+        return f"{user.first_name} {user.last_name}"
+    else:
+        return user.first_name or str(user.id)
+
+
+
 logger = logging.getLogger(__name__)
 
 # Weekday headers per language — short 2-letter abbreviations
@@ -426,7 +453,7 @@ async def enter_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     duration     = context.user_data["duration"]
     end_hour     = start_hour + duration
     u = update.effective_user
-    display_name = u.username or ((u.first_name or "") + (" " + u.last_name if u.last_name else "")).strip() or str(u.id)
+    display_name = _display_name(u)
 
     # Step 4 — Build preview using translation key (respects hy/ru/en)
     preview = get_text(
@@ -480,7 +507,7 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await query.answer()
     lang     = _lang(context)
     user     = update.effective_user
-    username = user.username or ((user.first_name or "") + (" " + user.last_name if user.last_name else "")).strip() or str(user.id)
+    username = _storage_name(user)
     # Update stored username without overwriting lang
     import database as _db
     _stored_lang = _db.get_user_lang(user.id) or _lang(context)
@@ -647,7 +674,7 @@ async def change_lang_in_flow(update: Update, context: ContextTypes.DEFAULT_TYPE
     import database as _db
     user = update.effective_user
     if user:
-        username = user.username or ((user.first_name or "") + (" " + user.last_name if user.last_name else "")).strip() or str(user.id)
+        username = _storage_name(user)
         _db.upsert_user(user.id, username, lang)
 
     # Re-show the current booking step in the new language
