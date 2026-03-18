@@ -521,17 +521,6 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         context.user_data["lang"] = lang
         return ConversationHandler.END
 
-    # Delete the Step 4 "enter title" prompt message if it exists
-    title_msg_id = context.user_data.get("title_prompt_msg_id")
-    if title_msg_id:
-        try:
-            await context.bot.delete_message(
-                chat_id    = update.effective_chat.id,
-                message_id = title_msg_id,
-            )
-        except Exception:
-            pass
-
     await query.edit_message_text(
         get_text(lang, "booking_confirmed", details=new_booking.full_text()),
         reply_markup=_kb_menu(lang),
