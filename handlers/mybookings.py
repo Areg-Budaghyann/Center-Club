@@ -380,7 +380,7 @@ async def delete_all_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE)
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton(get_text(lang, "btn_delete_all_yes"), callback_data="myb_delete_all_yes"),
-            InlineKeyboardButton(get_text(lang, "btn_cancel"),         callback_data="mybookings"),
+            InlineKeyboardButton(get_text(lang, "btn_back"),         callback_data="mybookings"),
         ],
     ])
     await query.edit_message_text(

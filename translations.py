@@ -78,7 +78,7 @@ T: dict[str, dict[str, str]] = {
         "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ Step 3 of 4 — Choose duration:",
         "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}h\n\n✏️ Step 4 of 4 — Enter event title:\n\n Type the name of your event (e.g. Board Games, Team Meeting)",
         "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}h\n\n✏️ Step 4 of 4 — Enter event title:\n\n Type the name of your event",
-        "confirm_preview":       "✅ Confirm your booking:*\n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}h)\n👤 @{user}",
+        "confirm_preview":       "✅ Confirm your booking:\n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}h)\n👤 @{user}",
         "booking_confirmed":     "🎉 Booking confirmed!\n\n{details}",
         "booking_cancelled":     "Booking cancelled.",
 
