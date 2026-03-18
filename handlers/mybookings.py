@@ -87,7 +87,7 @@ async def view_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         ],
         [InlineKeyboardButton(get_text(lang, "btn_my_bookings_back"), callback_data="mybookings")],
     ])
-    await query.edit_message_text(b.full_text(), parse_mode="Markdown", reply_markup=keyboard)
+    await query.edit_message_text(b.full_text(), reply_markup=keyboard)
 
 
 # ── Cancel booking ────────────────────────────────────────────────────────────
@@ -209,13 +209,12 @@ async def edit_pick_month(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     booking_id = context.user_data.get("edit_booking_id")
     today = date.today()
 
-
     # Build calendar day grid
     WEEKDAY_HEADERS = {
-    "en": ["Mon", "Tus", "Wed", "Thr", "Fri", "Sat", "Sun"],
-    "ru": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
-    "hy": ["Երկ", "Երք", "Չոր", "Հին", "Ուրբ", "Շբթ", "Կիր"],
-}
+        "en": ["Mo","Tu","We","Th","Fr","Sa","Su"],
+        "ru": ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"],
+        "hy": ["Եկ","Եք","Չո","Հի","Ուր","Շբ","Կի"],
+    }
     headers = WEEKDAY_HEADERS.get(lang, WEEKDAY_HEADERS["en"])
     rows = [[InlineKeyboardButton(h, callback_data="edit_cal_noop") for h in headers]]
 
@@ -314,6 +313,8 @@ async def edit_enter_value(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 text=get_text(lang, "edit_failed", reason=reason),
                 reply_markup=_back_menu(lang),
             )
+    lang = context.user_data.get("lang", "en")
+    context.user_data["lang"] = lang
     return ConversationHandler.END
 
 
@@ -334,6 +335,8 @@ async def edit_inline_value(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         updated, reason = edit_booking(booking_id, user_id, date=data.split(":")[1])
     else:
         await query.edit_message_text(get_text(lang, "edit_unknown_action"), reply_markup=_back_menu(lang))
+        lang = context.user_data.get("lang", "en")
+        context.user_data["lang"] = lang
         return ConversationHandler.END
 
     if updated:
@@ -346,6 +349,8 @@ async def edit_inline_value(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             get_text(lang, "edit_failed", reason=reason),
             reply_markup=_back_menu(lang),
         )
+    lang = context.user_data.get("lang", "en")
+    context.user_data["lang"] = lang
     return ConversationHandler.END
 
 
@@ -356,6 +361,8 @@ async def edit_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     context.user_data.pop("edit_booking_id", None)
     context.user_data.pop("edit_field", None)
     await query.edit_message_text(get_text(lang, "edit_cancelled"), reply_markup=_back_menu(lang))
+    lang = context.user_data.get("lang", "en")
+    context.user_data["lang"] = lang
     return ConversationHandler.END
 
 

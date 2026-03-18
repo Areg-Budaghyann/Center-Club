@@ -492,6 +492,8 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                      user=conflict.username),
             reply_markup=_kb_menu(lang),
         )
+        lang = context.user_data.get("lang", "en")
+        context.user_data["lang"] = lang
         return ConversationHandler.END
 
     new_booking, db_conflict = create_booking(
@@ -510,6 +512,8 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                      user=db_conflict.username),
             reply_markup=_kb_menu(lang),
         )
+        lang = context.user_data.get("lang", "en")
+        context.user_data["lang"] = lang
         return ConversationHandler.END
 
     await query.edit_message_text(
@@ -557,7 +561,7 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     chat_id=uid,
                     text=msg,
                     reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton("Окей, понятно", callback_data="notif_dismiss")
+                        InlineKeyboardButton(get_text(ul, "btn_dismiss"), callback_data="notif_dismiss")
                     ]]),
                 )
             except Exception as exc:
@@ -574,7 +578,7 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                   title=new_booking.title,
                                   user=new_booking.username),
                     reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton("Окей, понятно", callback_data="notif_dismiss")
+                        InlineKeyboardButton(get_text(ul, "btn_dismiss"), callback_data="notif_dismiss")
                     ]]),
                 )
             except Exception as exc:
@@ -582,6 +586,8 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     lang = context.user_data.get("lang")
     context.user_data.clear()
+    context.user_data["lang"] = lang
+    lang = context.user_data.get("lang", "en")
     context.user_data["lang"] = lang
     return ConversationHandler.END
 
@@ -602,6 +608,8 @@ async def book_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         get_text(lang, "booking_cancelled"),
         reply_markup=_kb_menu(lang),
     )
+    lang = context.user_data.get("lang", "en")
+    context.user_data["lang"] = lang
     return ConversationHandler.END
 
 

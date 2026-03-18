@@ -159,6 +159,7 @@ T: dict[str, dict[str, str]] = {
         "past_day_alert":        "That day is already in the past.",
         "error_message":         "Something went wrong. Please try again.",
         "no_permission":         "⛔ You don't have permission to use this command.",
+        "btn_dismiss":           "👌 OK, got you!",
 
         # ── RECURRING BOOKINGS ──────────────────────────────────────────────
         "recurring_intro":       (
@@ -297,6 +298,7 @@ T: dict[str, dict[str, str]] = {
         "past_day_alert":        "Этот день уже прошёл.",
         "error_message":         "Что-то пошло не так. Попробуйте ещё раз.",
         "no_permission":         "⛔ У вас нет прав для этой команды.",
+        "btn_dismiss":           "👌 Окей, понятно",
 
         "recurring_intro":       "📅 Повторяющееся бронирование\n\nКаждый *{weekday}* с *{start}* до *{end}*.\n\n*Шаг 1 — Выберите дату НАЧАЛА:*\n_(Сначала выберите месяц)_",
         "recurring_pick_to":     "✅ Дата начала: *{from_date}*\n\n*Шаг 2 — Выберите дату КОНЦА:*\n_(Сначала выберите месяц)_",
@@ -415,6 +417,7 @@ T: dict[str, dict[str, str]] = {
         "past_day_alert":        "Այդ օրն արդեն անցել է։",
         "error_message":         "Ինչ-որ բան սխալ գնաց։ Խնդրում ենք փորձել կրկին։",
         "no_permission":         "⛔ Դուք իրավունք չունեք այս հրամանն օգտագործելու։",
+        "btn_dismiss":           "👌 Շատ լավ, հասկացա!",
 
         "recurring_intro":       "📅 *Կրկնվող ամրագրում*\n\nԱմեն *{weekday}* ժամը *{start}*-ից մինչև *{end}*։\n\n*Քայլ 1 — Ընտրեք ՄԵԿՆԱՐԿԻ ամսաթիվը:*\n_(Նախ ընտրեք ամիսը)_",
         "recurring_pick_to":     "✅ Մեկնարկի ամսաթիվ՝ *{from_date}*\n\n*Քայլ 2 — Ընտրեք ԱՎԱՐՏԻ ամսաթիվը:*\n_(Նախ ընտրեք ամիսը)_",
@@ -496,3 +499,5 @@ def get_text(lang: str, key: str, **kwargs) -> str:
          .get(key, T[DEFAULT_LANG].get(key, f"[missing text: {key}]"))
     )
     return text.format(**kwargs) if kwargs else text
+
+

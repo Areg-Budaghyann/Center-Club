@@ -1,19 +1,17 @@
 FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install dependencies first (layer cache friendly)
+# Force fresh install every time
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Copy source
 COPY . .
 
-# SQLite database will be written to /data (mount a volume here in production)
+RUN mkdir -p /data
+
 ENV DATABASE_PATH=/data/office.db
+ENV PYTHONUNBUFFERED=1
 
-# Default port for webhook mode
-EXPOSE 8443
-
-CMD ["python", "bot.py"]
+CMD ["python", "-u", "bot.py"]

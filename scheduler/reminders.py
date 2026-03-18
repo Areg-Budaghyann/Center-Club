@@ -101,7 +101,7 @@ async def _send_reminders(bot: Bot) -> None:
                     text         = headsup_msg,
                     parse_mode   = "Markdown",
                     reply_markup = InlineKeyboardMarkup([[
-                        InlineKeyboardButton("Окей, понятно", callback_data="notif_dismiss")
+                        InlineKeyboardButton(get_text(user_lang, "btn_dismiss"), callback_data="notif_dismiss")
                     ]]),
                 )
             except TelegramError as exc:
