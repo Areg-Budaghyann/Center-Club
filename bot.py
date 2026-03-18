@@ -131,6 +131,7 @@ def main() -> None:
     app.run_polling(
         drop_pending_updates = True,
         allowed_updates      = ["message", "callback_query"],
+        error_callback       = None,
     )
 
 
