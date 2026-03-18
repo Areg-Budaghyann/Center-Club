@@ -41,6 +41,7 @@ WEEKDAY_HEADERS = {
     "hy": ["Երկ", "Երք", "Չոր", "Հին", "Ուբր", "Շբթ", "Կիր"],
 }
 
+
 def _lang(context: ContextTypes.DEFAULT_TYPE) -> str:
     return context.user_data.get("lang", DEFAULT_LANG)
 
@@ -626,6 +627,23 @@ async def notif_dismiss(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         pass
 
 
+
+async def change_lang_in_flow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """User changed language mid-booking — save new lang and stay in current state."""
+    query = update.callback_query
+    await query.answer()
+    lang = query.data.split(":")[1]
+    context.user_data["lang"] = lang
+    # Save to DB
+    import database as _db
+    user = update.effective_user
+    if user:
+        username = user.username or user.first_name or str(user.id)
+        _db.upsert_user(user.id, username, lang)
+    # Just answer - user stays on current screen with new lang for next action
+    return context.user_data.get("_state", STATE_PICK_DATE)
+
+
 # ===========================================================================
 # Registration
 # ===========================================================================
@@ -635,6 +653,7 @@ def register(application) -> None:
         entry_points=[CallbackQueryHandler(book_entry, pattern="^book$")],
         states={
             STATE_PICK_DATE: [
+                CallbackQueryHandler(change_lang_in_flow, pattern=r"^lang:(en|ru|hy)$"),
                 CallbackQueryHandler(pick_month,    pattern=r"^cal_month:\d+:\d+$"),
                 CallbackQueryHandler(pick_date,     pattern=r"^date:\d{4}-\d{2}-\d{2}$"),
                 CallbackQueryHandler(back_to_month, pattern="^back_to_month$"),
@@ -643,21 +662,25 @@ def register(application) -> None:
                 CallbackQueryHandler(book_cancel,   pattern="^book_cancel$"),
             ],
             STATE_PICK_HOUR: [
+                CallbackQueryHandler(change_lang_in_flow, pattern=r"^lang:(en|ru|hy)$"),
                 CallbackQueryHandler(pick_hour,    pattern=r"^hour:\d+$"),
                 CallbackQueryHandler(pick_hour,    pattern=r"^hour_busy:\d+$"),
                 CallbackQueryHandler(back_to_date, pattern="^back_to_date$"),
                 CallbackQueryHandler(book_cancel,  pattern="^book_cancel$"),
             ],
             STATE_PICK_DURATION: [
+                CallbackQueryHandler(change_lang_in_flow, pattern=r"^lang:(en|ru|hy)$"),
                 CallbackQueryHandler(pick_duration, pattern=r"^dur:\d+$"),
                 CallbackQueryHandler(back_to_hour,  pattern="^back_to_hour$"),
                 CallbackQueryHandler(book_cancel,   pattern="^book_cancel$"),
             ],
             STATE_ENTER_TITLE: [
+                CallbackQueryHandler(change_lang_in_flow, pattern=r"^lang:(en|ru|hy)$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, enter_title),
                 CallbackQueryHandler(book_cancel, pattern="^book_cancel$"),
             ],
             STATE_CONFIRM: [
+                CallbackQueryHandler(change_lang_in_flow, pattern=r"^lang:(en|ru|hy)$"),
                 CallbackQueryHandler(confirm_booking, pattern="^confirm_yes$"),
                 CallbackQueryHandler(back_to_title,   pattern="^back_to_title$"),
                 CallbackQueryHandler(book_cancel,     pattern="^book_cancel$"),
