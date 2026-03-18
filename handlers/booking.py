@@ -17,7 +17,7 @@ from datetime import date
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
-    CallbackQueryHandler, ContextTypes, ConversationHandler,
+    CallbackQueryHandler, CommandHandler, ContextTypes, ConversationHandler,
     MessageHandler, filters,
 )
 
@@ -40,7 +40,6 @@ WEEKDAY_HEADERS = {
     "ru": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
     "hy": ["Երկ", "Երք", "Չոր", "Հին", "Ուբր", "Շբթ", "Կիր"],
 }
-
 
 def _lang(context: ContextTypes.DEFAULT_TYPE) -> str:
     return context.user_data.get("lang", DEFAULT_LANG)
@@ -697,6 +696,51 @@ async def change_lang_in_flow(update: Update, context: ContextTypes.DEFAULT_TYPE
         return STATE_PICK_DATE
 
 
+async def _ignore_start_in_flow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """User pressed /start during booking — delete it and re-show current step."""
+    lang = _lang(context)
+    try:
+        await update.message.delete()
+    except Exception:
+        pass
+    ud = context.user_data
+    chosen_date = ud.get("date")
+    start_hour  = ud.get("start_hour")
+    duration    = ud.get("duration")
+    cal_year    = ud.get("cal_year")
+    cal_month   = ud.get("cal_month")
+
+    if duration is not None and start_hour is not None and chosen_date:
+        msg = await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=get_text(lang, "enter_title", date=chosen_date,
+                         hour=f"{start_hour:02d}", duration=duration),
+        )
+        ud["title_prompt_msg_id"] = msg.message_id
+        return STATE_ENTER_TITLE
+    elif start_hour is not None and chosen_date:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=get_text(lang, "choose_duration", date=chosen_date, hour=f"{start_hour:02d}"),
+            reply_markup=_kb_duration(chosen_date, start_hour, lang),
+        )
+        return STATE_PICK_DURATION
+    elif chosen_date:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=get_text(lang, "choose_time", date=chosen_date),
+            reply_markup=_kb_hour(chosen_date, lang),
+        )
+        return STATE_PICK_HOUR
+    else:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=get_text(lang, "choose_month"),
+            reply_markup=_kb_month(lang),
+        )
+        return STATE_PICK_DATE
+
+
 # ===========================================================================
 # Registration
 # ===========================================================================
@@ -730,6 +774,7 @@ def register(application) -> None:
             STATE_ENTER_TITLE: [
                 CallbackQueryHandler(change_lang_in_flow, pattern=r"^lang:(en|ru|hy)$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, enter_title),
+                CommandHandler("start", _ignore_start_in_flow),
                 CallbackQueryHandler(book_cancel, pattern="^book_cancel$"),
             ],
             STATE_CONFIRM: [
@@ -742,6 +787,7 @@ def register(application) -> None:
         fallbacks=[
             CallbackQueryHandler(book_cancel, pattern="^book_cancel$"),
             CallbackQueryHandler(book_cancel, pattern="^menu$"),
+            CommandHandler("start", _ignore_start_in_flow),
         ],
         per_message=False,
     )
