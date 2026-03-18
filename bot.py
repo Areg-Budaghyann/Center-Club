@@ -44,7 +44,7 @@ async def _track_user(update, context) -> None:
 
 def build_application() -> Application:
     """Wire everything together and return the Application."""
-    app = Application.builder().token(BOT_TOKEN).concurrent_updates(8).build()
+    app = Application.builder().token(BOT_TOKEN).build()
 
     # Track every user automatically before any handler runs
     from telegram.ext import TypeHandler
