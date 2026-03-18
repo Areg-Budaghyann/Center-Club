@@ -1,11 +1,7 @@
 """
 scheduler/reminders.py
 -----------------------
-Runs every minute.
-For each upcoming booking (starting in ~REMINDER_MINUTES_BEFORE min):
-  1. Sends a personal reminder to the booking owner.
-  2. Sends a heads-up to ALL other users so they know the office is occupied.
-  3. Sends to the group chat if GROUP_CHAT_ID is configured.
+Runs every minute. Sends reminders for upcoming bookings.
 """
 
 import logging
@@ -22,23 +18,14 @@ from translations import get_text
 logger = logging.getLogger(__name__)
 
 
-def _esc(text: str) -> str:
-    """Escape Markdown special chars in user-provided strings."""
-    for ch in ["_", "*", "`", "["]:
-        text = text.replace(ch, "\\" + ch)
-    return text
-
-
-def _user_lang(user_id: int) -> str:
-    """Fetch stored language for a user, defaulting to en."""
+def _get_all_user_langs() -> dict:
+    """Fetch all user langs in a single DB query."""
     try:
         with db._connect() as conn:
-            row = conn.execute(
-                "SELECT lang FROM users WHERE user_id = ?", (user_id,)
-            ).fetchone()
-        return row["lang"] if row else "en"
+            rows = conn.execute("SELECT user_id, lang FROM users").fetchall()
+        return {row["user_id"]: row["lang"] for row in rows}
     except Exception:
-        return "en"
+        return {}
 
 
 async def _send_reminders(bot: Bot) -> None:
@@ -49,14 +36,18 @@ async def _send_reminders(bot: Bot) -> None:
     window_end   = (target + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M")
 
     bookings = db.get_upcoming_bookings_needing_reminder(window_start, window_end)
+    if not bookings:
+        return  # Nothing to do — exit immediately
+
+    # Single DB query for ALL user langs
+    user_langs = _get_all_user_langs()
 
     for b in bookings:
-
         import datetime as _dt
         day_name = _dt.date.fromisoformat(b.date).strftime("%A, %b %d")
 
         # ── 1. Personal reminder to the booking owner ─────────────────────
-        owner_lang   = _user_lang(b.user_id)
+        owner_lang   = user_langs.get(b.user_id, "en")
         personal_msg = (
             "⏰ Reminder — your booking starts in "
             + str(REMINDER_MINUTES_BEFORE)
@@ -67,11 +58,7 @@ async def _send_reminders(bot: Bot) -> None:
             + "👤 @" + b.username
         )
         try:
-            await bot.send_message(
-                chat_id    = b.user_id,
-                text       = personal_msg,
-                parse_mode = "Markdown",
-            )
+            await bot.send_message(chat_id=b.user_id, text=personal_msg)
             db.mark_reminder_sent(b.id)
             logger.info("Reminder sent: booking id=%d → user_id=%d", b.id, b.user_id)
         except TelegramError as exc:
@@ -79,15 +66,14 @@ async def _send_reminders(bot: Bot) -> None:
             continue
 
         # ── 2. Heads-up to ALL other users ────────────────────────────────
-        all_user_ids = db.get_all_user_ids()
+        all_user_ids = list(user_langs.keys())
 
         for uid in all_user_ids:
             if uid == b.user_id:
                 continue
-
-            user_lang  = _user_lang(uid)
+            user_lang   = user_langs.get(uid, "en")
             headsup_msg = (
-                "⏰ *Office in " + str(REMINDER_MINUTES_BEFORE) + " min*\n\n"
+                "⏰ Office in " + str(REMINDER_MINUTES_BEFORE) + " min\n\n"
                 + get_text(user_lang, "group_notification",
                            day=day_name,
                            start=b.start_time,
@@ -99,9 +85,11 @@ async def _send_reminders(bot: Bot) -> None:
                 await bot.send_message(
                     chat_id      = uid,
                     text         = headsup_msg,
-                    parse_mode   = "Markdown",
                     reply_markup = InlineKeyboardMarkup([[
-                        InlineKeyboardButton(get_text(user_lang, "btn_dismiss"), callback_data="notif_dismiss")
+                        InlineKeyboardButton(
+                            get_text(user_lang, "btn_dismiss"),
+                            callback_data="notif_dismiss"
+                        )
                     ]]),
                 )
             except TelegramError as exc:
@@ -111,9 +99,9 @@ async def _send_reminders(bot: Bot) -> None:
         if GROUP_CHAT_ID:
             try:
                 await bot.send_message(
-                    chat_id    = GROUP_CHAT_ID,
-                    text       = (
-                        "⏰ *Office in " + str(REMINDER_MINUTES_BEFORE) + " min*\n\n"
+                    chat_id = GROUP_CHAT_ID,
+                    text    = (
+                        "⏰ Office in " + str(REMINDER_MINUTES_BEFORE) + " min\n\n"
                         + get_text("en", "group_notification",
                                    day=day_name,
                                    start=b.start_time,
@@ -121,7 +109,6 @@ async def _send_reminders(bot: Bot) -> None:
                                    title=b.title,
                                    user=b.username)
                     ),
-                    parse_mode = "Markdown",
                 )
             except TelegramError as exc:
                 logger.warning("Group chat reminder failed: %s", exc)
