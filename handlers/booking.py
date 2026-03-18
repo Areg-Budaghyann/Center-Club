@@ -41,7 +41,6 @@ WEEKDAY_HEADERS = {
     "hy": ["Երկ", "Երք", "Չոր", "Հին", "Ուբր", "Շբթ", "Կիր"],
 }
 
-
 def _lang(context: ContextTypes.DEFAULT_TYPE) -> str:
     return context.user_data.get("lang", DEFAULT_LANG)
 
@@ -664,7 +663,10 @@ def register(application) -> None:
                 CallbackQueryHandler(book_cancel,     pattern="^book_cancel$"),
             ],
         },
-        fallbacks=[CallbackQueryHandler(book_cancel, pattern="^book_cancel$")],
+        fallbacks=[
+            CallbackQueryHandler(book_cancel, pattern="^book_cancel$"),
+            CallbackQueryHandler(book_cancel, pattern="^menu$"),
+        ],
         per_message=False,
     )
     application.add_handler(conv)

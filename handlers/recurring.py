@@ -408,7 +408,10 @@ def register(application) -> None:
                 CallbackQueryHandler(rec_cancel,        pattern="^rec_cancel$"),
             ],
         },
-        fallbacks=[CallbackQueryHandler(rec_cancel, pattern="^rec_cancel$")],
+        fallbacks=[
+            CallbackQueryHandler(rec_cancel, pattern="^rec_cancel$"),
+            CallbackQueryHandler(rec_cancel, pattern="^menu$"),
+        ],
         per_message=False,
     )
     application.add_handler(conv)
