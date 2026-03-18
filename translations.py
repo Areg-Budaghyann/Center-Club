@@ -78,7 +78,7 @@ T: dict[str, dict[str, str]] = {
         "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ Step 3 of 4 — Choose duration:",
         "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}h\n\n✏️ Step 4 of 4 — Enter event title:\n\n Type the name of your event (e.g. Board Games, Team Meeting)",
         "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}h\n\n✏️ Step 4 of 4 — Enter event title:\n\n Type the name of your event",
-        "confirm_preview":       "✅ Confirm your booking:\n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}h)\n👤 {user}",
+        "confirm_preview":       "✅ Confirm your booking:\n\n📋 {title}\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}h)\n👤 {user}",
         "booking_confirmed":     "🎉 Booking confirmed!\n\n{details}",
         "booking_cancelled":     "Booking cancelled.",
 
@@ -88,7 +88,7 @@ T: dict[str, dict[str, str]] = {
             "This time overlaps with:\n\n"
             "🕐 {start} – {end}\n"
             "📋 {title}\n"
-            "👤 @{user}\n\n"
+            "👤 {user}\n\n"
             "Please choose a different time."
         ),
         "slot_taken_alert":      "⛔ This hour is already booked.",
@@ -227,7 +227,7 @@ T: dict[str, dict[str, str]] = {
         "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ Шаг 3 из 4 — Выберите длительность:",
         "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ч\n\n✏️ Шаг 4 из 4 — Введите название: \n\nНапример: Настольные игры, Встреча команды",
         "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ч\n\n✏️ Шаг 4 из 4 — Введите название: \n\n_Введите название события_",
-        "confirm_preview":       "✅ Подтвердите бронирование: \n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}ч)\n👤 {user}",
+        "confirm_preview":       "✅ Подтвердите бронирование: \n\n📋 {title}\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}ч)\n👤 {user}",
         "booking_confirmed":     "🎉 Бронирование подтверждено!\n\n{details}",
         "booking_cancelled":     "Бронирование отменено.",
 
@@ -345,7 +345,7 @@ T: dict[str, dict[str, str]] = {
         "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ Քայլ 3 4-ից — Ընտրեք տևողությունը:",
         "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ժ\n\n✏️ Քայլ 4 4-ից — Մուտքագրեք անունը: \n\nՕրինակ՝ Սեղանի խաղեր կամ Փոքր խումբ",
         "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ժ\n\n✏️ Քայլ 4 4-ից — Մուտքագրեք անունը: \n\n_Մուտքագրեք միջոցառման անունը_",
-        "confirm_preview":       "✅ Հաստատե՞լ ամրագրումը:\n\n📋 *{title}*\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}ժ)\n👤 {user}",
+        "confirm_preview":       "✅ Հաստատե՞լ ամրագրումը:\n\n📋 {title}\n📅 {date}\n🕐 {start}:00 – {end}:00  ({duration}ժ)\n👤 {user}",
         "booking_confirmed":     "🎉 Ամրագրումը հաստատված է!\n\n{details}",
         "booking_cancelled":     "Ամրագրումը չեղարկված է։",
 
