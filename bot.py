@@ -30,16 +30,25 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# In-memory cache of registered user IDs — avoids DB hit on every update
+_registered_users: set = set()
+
 async def _track_user(update, context) -> None:
-    """
-    Middleware: register every user who interacts with the bot.
-    Runs before every handler so the users table stays up to date.
-    """
+    """Register new users only. Uses in-memory cache to avoid DB reads."""
     user = update.effective_user
-    if user and not user.is_bot:
-        lang = context.user_data.get("lang", "en")
-        username = user.username or user.first_name or str(user.id)
-        database.upsert_user(user.id, username, lang)
+    if not user or user.is_bot:
+        return
+    if user.id in _registered_users:
+        return  # Already known — skip DB entirely
+    username = user.username or user.first_name or str(user.id)
+    existing = database.get_user_lang(user.id)
+    if existing is None:
+        database.upsert_user(user.id, username, "en")
+    else:
+        # Restore lang from DB into user_data if missing
+        if not context.user_data.get("lang"):
+            context.user_data["lang"] = existing
+    _registered_users.add(user.id)
 
 
 def build_application() -> Application:

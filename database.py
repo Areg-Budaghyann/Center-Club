@@ -22,25 +22,23 @@ logger = logging.getLogger(__name__)
 # ── Connection factory ────────────────────────────────────────────────────────
 
 def _connect() -> sqlite3.Connection:
-    """Open a connection with row_factory and WAL mode enabled.
-    Creates the directory if it doesn't exist (fixes Railway /data mount issues).
-    """
-    import os
-    db_dir = os.path.dirname(DATABASE_PATH)
-    if db_dir:
-        os.makedirs(db_dir, exist_ok=True)
+    """Open a connection with row_factory. WAL is set once in init_db."""
     conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False, timeout=10)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL;")
-    conn.execute("PRAGMA foreign_keys=ON;")
     return conn
 
 
 # ── Schema initialisation ─────────────────────────────────────────────────────
 
 def init_db() -> None:
+    import os
+    db_dir = os.path.dirname(DATABASE_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
     """Create tables and indexes if they don't exist yet. Call once at startup."""
     with _connect() as conn:
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA foreign_keys=ON;")
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS bookings (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -286,6 +284,15 @@ def upsert_user(user_id: int, username: str, lang: str = "en") -> None:
             """,
             (user_id, username, lang, first_seen),
         )
+
+
+def get_user_lang(user_id: int):
+    """Return stored lang for user, or None if user not in DB."""
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT lang FROM users WHERE user_id = ?", (user_id,)
+        ).fetchone()
+    return row["lang"] if row else None
 
 
 def get_all_user_ids() -> list[int]:
