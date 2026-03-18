@@ -35,13 +35,27 @@ from services.schedule_service import get_free_slots
 
 def _display_name(user) -> str:
     """
-    Returns correct display name for a Telegram user.
+    Returns correctly formatted display name.
+    Used in {user} placeholder in translations (@ must be removed from templates).
     - Has username  → @username
-    - No username   → first_name + last_name (or just first_name)
-    Never shows @None or wrong values.
+    - No username   → first_name + last_name OR first_name only
+    NEVER shows @None or wrong values.
     """
     if user.username:
         return f"@{user.username}"
+    elif user.first_name and user.last_name:
+        return f"{user.first_name} {user.last_name}"
+    else:
+        return user.first_name or str(user.id)
+
+
+def _storage_name(user) -> str:
+    """
+    Name stored in DB bookings table.
+    Same logic as _display_name but without @ prefix.
+    """
+    if user.username:
+        return user.username
     elif user.first_name and user.last_name:
         return f"{user.first_name} {user.last_name}"
     else:
@@ -453,18 +467,24 @@ async def enter_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     duration     = context.user_data["duration"]
     end_hour     = start_hour + duration
     u = update.effective_user
-    display_name = _display_name(u)
+    # Format user correctly: @username if has one, else real name without @
+    user_display = _display_name(u)
 
-    # Step 4 — Build preview using translation key (respects hy/ru/en)
+    # Step 4 — Build preview using translation but fix @user issue
+    # get_text adds @ to {user}, so pass user WITHOUT @ for no-username users
+    # and WITH @ stripped for username users (translation re-adds it)
     preview = get_text(
         lang, "confirm_preview",
-        title=title,
-        date=chosen_date,
-        start=f"{start_hour:02d}",
-        end=f"{end_hour:02d}",
-        duration=duration,
-        user=display_name,
+        title    = title,
+        date     = chosen_date,
+        start    = f"{start_hour:02d}",
+        end      = f"{end_hour:02d}",
+        duration = duration,
+        user     = _display_name(u),  # _display_name returns username (no @) or real name
     )
+    # Fix: if user has no username, remove the @ that translation added
+    if not u.username:
+        preview = preview.replace(f"@{_display_name(u)}", _display_name(u))
     title_msg_id = context.user_data.get("title_prompt_msg_id")
     if title_msg_id:
         # Edit the existing "Step 4" message into the confirmation card
@@ -583,15 +603,18 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 with _db._connect() as conn:
                     row = conn.execute("SELECT lang FROM users WHERE user_id=?", (uid,)).fetchone()
                 ul = row["lang"] if row else "en"
-                msg = (
-                    "📢 " + get_text(ul, "btn_book_office") + "\n\n"
-                    + get_text(ul, "group_notification",
+                # Build notification — fix @user for users without username
+                _notif_user = f"@{new_booking.username}" if user.username else new_booking.username
+                _raw = get_text(ul, "group_notification",
                                day=_day_name(ul),
                                start=new_booking.start_time,
                                end=new_booking.end_time,
                                title=new_booking.title,
                                user=new_booking.username)
-                )
+                # Remove @ if user has no username (translation adds it)
+                if not user.username:
+                    _raw = _raw.replace(f"@{new_booking.username}", new_booking.username)
+                msg = "📢 " + get_text(ul, "btn_book_office") + "\n\n" + _raw
                 await context.bot.send_message(
                     chat_id=uid,
                     text=msg,
