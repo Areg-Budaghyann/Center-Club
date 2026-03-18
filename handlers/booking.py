@@ -38,8 +38,9 @@ logger = logging.getLogger(__name__)
 WEEKDAY_HEADERS = {
     "en": ["Mon", "Tus", "Wed", "Thr", "Fri", "Sat", "Sun"],
     "ru": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
-    "hy": ["Երկ", "Երք", "Չոր", "Հին", "Ուբր", "Շբթ", "Կիր"],
+    "hy": ["Երկ", "Երք", "Չոր", "Հին", "Ուբр", "Շбт", "Кир"],
 }
+
 
 def _lang(context: ContextTypes.DEFAULT_TYPE) -> str:
     return context.user_data.get("lang", DEFAULT_LANG)
@@ -424,7 +425,8 @@ async def enter_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     start_hour   = context.user_data["start_hour"]
     duration     = context.user_data["duration"]
     end_hour     = start_hour + duration
-    display_name = update.effective_user.username or update.effective_user.first_name
+    u = update.effective_user
+    display_name = u.username or ((u.first_name or "") + (" " + u.last_name if u.last_name else "")).strip() or str(u.id)
 
     # Step 4 — Build preview using translation key (respects hy/ru/en)
     preview = get_text(
@@ -478,7 +480,11 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await query.answer()
     lang     = _lang(context)
     user     = update.effective_user
-    username = user.username or user.first_name
+    username = user.username or ((user.first_name or "") + (" " + user.last_name if user.last_name else "")).strip() or str(user.id)
+    # Update stored username without overwriting lang
+    import database as _db
+    _stored_lang = _db.get_user_lang(user.id) or _lang(context)
+    _db.upsert_user(user.id, username, _stored_lang)
     ud       = context.user_data
 
     conflict = _has_conflict(ud["date"], ud["start_hour"], ud["duration"])
@@ -515,6 +521,17 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         context.user_data["lang"] = lang
         return ConversationHandler.END
 
+    # Delete the Step 4 "enter title" prompt message if it exists
+    title_msg_id = context.user_data.get("title_prompt_msg_id")
+    if title_msg_id:
+        try:
+            await context.bot.delete_message(
+                chat_id    = update.effective_chat.id,
+                message_id = title_msg_id,
+            )
+        except Exception:
+            pass
+
     await query.edit_message_text(
         get_text(lang, "booking_confirmed", details=new_booking.full_text()),
         reply_markup=_kb_menu(lang),
@@ -537,7 +554,10 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if True:
         import datetime as _dt
         import database as _db
-        day_name = _dt.date.fromisoformat(new_booking.date).strftime("%A, %b %d")
+        from translations import WEEKDAY_NAMES, MONTH_SHORT
+        _d = _dt.date.fromisoformat(new_booking.date)
+        def _day_name(l):
+            return f"{WEEKDAY_NAMES.get(l, WEEKDAY_NAMES['en'])[_d.weekday()]}, {_d.day} {MONTH_SHORT.get(l, MONTH_SHORT['en'])[_d.month-1]}"
         all_user_ids = _db.get_all_user_ids()
 
         for uid in all_user_ids:
@@ -548,9 +568,9 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     row = conn.execute("SELECT lang FROM users WHERE user_id=?", (uid,)).fetchone()
                 ul = row["lang"] if row else "en"
                 msg = (
-                    "📢 *" + get_text(ul, "btn_book_office") + "*\n\n"
+                    "📢 " + get_text(ul, "btn_book_office") + "\n\n"
                     + get_text(ul, "group_notification",
-                               day=day_name,
+                               day=_day_name(ul),
                                start=new_booking.start_time,
                                end=new_booking.end_time,
                                title=new_booking.title,
@@ -571,7 +591,7 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await context.bot.send_message(
                     chat_id=GROUP_CHAT_ID,
                     text=get_text("en", "group_notification",
-                                  day=day_name,
+                                  day=_day_name("en"),
                                   start=new_booking.start_time,
                                   end=new_booking.end_time,
                                   title=new_booking.title,
@@ -638,7 +658,7 @@ async def change_lang_in_flow(update: Update, context: ContextTypes.DEFAULT_TYPE
     import database as _db
     user = update.effective_user
     if user:
-        username = user.username or user.first_name or str(user.id)
+        username = user.username or ((user.first_name or "") + (" " + user.last_name if user.last_name else "")).strip() or str(user.id)
         _db.upsert_user(user.id, username, lang)
 
     # Re-show the current booking step in the new language
