@@ -629,19 +629,72 @@ async def notif_dismiss(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def change_lang_in_flow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """User changed language mid-booking — save new lang and stay in current state."""
+    """User changed language mid-booking — save lang and re-show current step in new language."""
     query = update.callback_query
     await query.answer()
     lang = query.data.split(":")[1]
     context.user_data["lang"] = lang
+
     # Save to DB
     import database as _db
     user = update.effective_user
     if user:
         username = user.username or user.first_name or str(user.id)
         _db.upsert_user(user.id, username, lang)
-    # Just answer - user stays on current screen with new lang for next action
-    return context.user_data.get("_state", STATE_PICK_DATE)
+
+    # Re-show the current booking step in the new language
+    ud = context.user_data
+    chosen_date  = ud.get("date")
+    start_hour   = ud.get("start_hour")
+    duration     = ud.get("duration")
+    cal_year     = ud.get("cal_year")
+    cal_month    = ud.get("cal_month")
+
+    try:
+        if duration is not None and start_hour is not None and chosen_date:
+            # STATE_ENTER_TITLE or STATE_CONFIRM — re-show title prompt
+            msg = await query.edit_message_text(
+                get_text(lang, "enter_title", date=chosen_date,
+                         hour=f"{start_hour:02d}", duration=duration),
+            )
+            ud["title_prompt_msg_id"] = msg.message_id
+            return STATE_ENTER_TITLE
+
+        elif start_hour is not None and chosen_date:
+            # STATE_PICK_DURATION — re-show duration picker
+            await query.edit_message_text(
+                get_text(lang, "choose_duration", date=chosen_date, hour=f"{start_hour:02d}"),
+                reply_markup=_kb_duration(chosen_date, start_hour, lang),
+            )
+            return STATE_PICK_DURATION
+
+        elif chosen_date:
+            # STATE_PICK_HOUR — re-show hour picker
+            await query.edit_message_text(
+                get_text(lang, "choose_time", date=chosen_date),
+                reply_markup=_kb_hour(chosen_date, lang),
+            )
+            return STATE_PICK_HOUR
+
+        elif cal_year and cal_month:
+            # STATE_PICK_DATE — re-show day grid
+            keyboard, month_label = _kb_day(cal_year, cal_month, lang)
+            await query.edit_message_text(
+                f"📅 {month_label}",
+                reply_markup=keyboard,
+            )
+            return STATE_PICK_DATE
+
+        else:
+            # STATE_PICK_DATE month picker
+            await query.edit_message_text(
+                get_text(lang, "choose_month"),
+                reply_markup=_kb_month(lang),
+            )
+            return STATE_PICK_DATE
+
+    except Exception:
+        return STATE_PICK_DATE
 
 
 # ===========================================================================
