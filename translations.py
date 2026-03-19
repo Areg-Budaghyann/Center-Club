@@ -459,7 +459,11 @@ MONTH_SHORT: dict[str, list[str]] = {
     "hy": ["Հնվ","Փտր","Մրտ","Ապր","Մյս","Հուն",
            "Հուլ","Օգս","Սեպ","Հկտ","Նյբ","Դկտ"],
 }
- 
+WEEKDAY_HEADERS: dict[str, list[str]] = {
+    "en": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "ru": ["Пн",  "Вт",  "Ср",  "Чт",  "Пт",  "Сб",  "Вс"],
+    "hy": ["Երկ", "Երք", "Չոր", "Հնգ", "Ուրբ", "Շբթ", "Կիր"],
+}
 # Weekday names per language (0=Monday … 6=Sunday)
 WEEKDAY_NAMES: dict[str, list[str]] = {
     "en": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],

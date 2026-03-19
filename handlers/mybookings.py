@@ -22,7 +22,7 @@ from config import (
 )
 from services.booking_service import cancel_booking, edit_booking
 import calendar as _calendar
-from translations import get_text, DEFAULT_LANG, MONTH_SHORT
+from translations import get_text, DEFAULT_LANG, MONTH_SHORT, WEEKDAY_HEADERS
 
 logger = logging.getLogger(__name__)
 
@@ -210,11 +210,6 @@ async def edit_pick_month(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     today = date.today()
 
     # Build calendar day grid
-    WEEKDAY_HEADERS = {
-        "en": ["Mo","Tu","We","Th","Fr","Sa","Su"],
-        "ru": ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"],
-        "hy": ["Եկ","Եք","Չո","Հի","Ուր","Շբ","Կի"],
-    }
     headers = WEEKDAY_HEADERS.get(lang, WEEKDAY_HEADERS["en"])
     rows = [[InlineKeyboardButton(h, callback_data="edit_cal_noop") for h in headers]]
 
@@ -380,7 +375,7 @@ async def delete_all_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE)
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton(get_text(lang, "btn_delete_all_yes"), callback_data="myb_delete_all_yes"),
-            InlineKeyboardButton(get_text(lang, "btn_back"),         callback_data="mybookings"),
+            InlineKeyboardButton(get_text(lang, "btn_cancel"),         callback_data="mybookings"),
         ],
     ])
     await query.edit_message_text(

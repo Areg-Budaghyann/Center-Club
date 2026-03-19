@@ -17,21 +17,21 @@ MENU_CALLBACK = "menu"
 # ── Help texts per language — exact text, no modifications ───────────────────
 HELP_TEXTS = {
     "hy": (
-        "📅 Ամրագրել ակումբը — քայլ առ քայլ ընտրել և ամրագրել ժամանակը։\n\n"
-        "📊 Տեսնել ակումբի գրաֆիկը— տեսնել ամրագրումները շաբաթվա կամ ամսվա կտրվածքով:\n\n"
-        "📌 Իմ ամրագրումները — տեսնել, փոփոխել կամ չեղարկել ձեր ամրագրումները։\n\n"
+        "📅 Ամրագրել ակումբը — քայլ առ քայլ ընտրել և ամրագրել ժամանակը։ \n"
+        "📊 Տեսնել ակումբի գրաֆիկը— տեսնել ամրագրումները շաբաթվա կամ ամսվա կտրվածքով։ \n"
+        "📌 Իմ ամրագրումները — տեսնել, փոփոխել կամ չեղարկել ձեր ամրագրումները։ \n"
         "🟢 Ազատ ժամանակ — ստուգել, թե որ ժամերն են հասանելի։"
     ),
     "ru": (
-        "📅 Забронировать клуб — пошагово выбрать и зарезервировать время.\n\n"
-        "📊 Посмотреть расписание — увидеть бронирования на неделю или месяц.\n\n"
-        "📌 Мои бронирования — просмотреть, изменить или отменить свои брони.\n\n"
+        "📅 Забронировать клуб — пошагово выбрать и зарезервировать время. \n"
+        "📊 Посмотреть расписание — увидеть бронирования на неделю или месяц. \n"
+        "📌 Мои бронирования — просмотреть, изменить или отменить свои брони. \n"
         "🟢 Свободное время — проверить, какие часы доступны."
     ),
     "en": (
-        "📅 Book club — reserve a time slot step by step.\n\n"
-        "📊 View schedule — see weekly or monthly bookings.\n\n"
-        "📌 My bookings — view, edit, or cancel your reservations.\n\n"
+        "📅 Book club — reserve a time slot step by step. \n"
+        "📊 View schedule — see weekly or monthly bookings. \n"
+        "📌 My bookings — view, edit, or cancel your reservations. \n"
         "🟢 Free time — check what hours are available."
     ),
 }
@@ -65,6 +65,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         pass
 
     lang = context.user_data.get("lang")
+    # Restore lang from DB if user_data was cleared (e.g. after bot restart)
+    if not lang and update.effective_user:
+        import database as _db
+        lang = _db.get_user_lang(update.effective_user.id)
+        if lang:
+            context.user_data["lang"] = lang
     if not lang:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -85,6 +91,12 @@ async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await query.answer()
     lang = query.data.split(":")[1]
     context.user_data["lang"] = lang
+    # Save language choice to DB so it persists across restarts
+    import database as _db
+    user = update.effective_user
+    if user:
+        username = user.username or user.first_name or str(user.id)
+        _db.upsert_user(user.id, username, lang)
     await query.edit_message_text(
         get_text(lang, "start_message"),
         parse_mode="Markdown",

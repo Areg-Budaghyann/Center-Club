@@ -13,20 +13,13 @@ from datetime import date, timedelta
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, CallbackQueryHandler
 
-from translations import get_text, MONTH_SHORT, DEFAULT_LANG
+from translations import get_text, MONTH_SHORT, DEFAULT_LANG, WEEKDAY_HEADERS
 from services.schedule_service import (
     build_weekly_schedule,
     build_monthly_schedule,
     get_free_slots,
     format_free_slots,
 )
-
-WEEKDAY_HEADERS = {
-    "en": ["Mon", "Tus", "Wed", "Thr", "Fri", "Sat", "Sun"],
-    "ru": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
-    "hy": ["Երկ", "Երք", "Չոր", "Հին", "Ուրբ", "Շբթ", "Կիր"],
-}
-
 
 def _lang(context) -> str:
     return context.user_data.get("lang", DEFAULT_LANG)
@@ -200,9 +193,9 @@ async def freetime_pick_day(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     lines   = [f"📅 {day_str}\n"]
 
     # Free slots section — translated labels
-    free_label   = {"en": "🟢 Free:",    "ru": "🟢 Свободно:", "hy": "🟢 Ազատ ժամեր։"}.get(lang, "🟢 Free:")
-    booked_label = {"en": "🔒 Booked:",  "ru": "🔒 Занято:",   "hy": "🔒 Զբաղված է։"}.get(lang, "🔒 Booked:")
-    no_free_label = {"en": "🔴 No free time this day.", "ru": "🔴 Свободного времени нет.", "hy": "🔴 Ազատ ժամ չկա"}.get(lang, "🔴 No free time this day.")
+    free_label   = {"en": "🟢 Free:",    "ru": "🟢 Свободно:", "hy": "🟢 Азат жамер:"}.get(lang, "🟢 Free:")
+    booked_label = {"en": "🔒 Booked:",  "ru": "🔒 Занято:",   "hy": "🔒 Збагвад е:"}.get(lang, "🔒 Booked:")
+    no_free_label = {"en": "🔴 No free time this day.", "ru": "🔴 Свободного времени нет.", "hy": "🔴 Азат жам чка."}.get(lang, "🔴 No free time this day.")
 
     if free_slots:
         lines.append(free_label)
