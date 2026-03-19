@@ -48,7 +48,7 @@ def build_weekly_schedule(reference_date: date | None = None, lang: str = "en") 
         by_date.setdefault(b.date, []).append(b)
 
     day_names = WEEKDAY_NAMES.get(lang, WEEKDAY_NAMES["en"])
-    free_word  = {"en": "Free", "ru": "Свободно", "hy": "Ազատ"}.get(lang, "Free")
+    free_word  = get_text(lang, "free_label").replace("🟢 ", "").replace(":", "")
     lines = [f"📅 {monday.strftime('%d.%m')} – {sunday.strftime('%d.%m')}\n"]
     for d in _date_range(monday, sunday):
         day_str = d.isoformat()

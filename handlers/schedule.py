@@ -193,9 +193,9 @@ async def freetime_pick_day(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     lines   = [f"📅 {day_str}\n"]
 
     # Free slots section — translated labels
-    free_label   = {"en": "🟢 Free:",    "ru": "🟢 Свободно:", "hy": "🟢 Азат жамер:"}.get(lang, "🟢 Free:")
-    booked_label = {"en": "🔒 Booked:",  "ru": "🔒 Занято:",   "hy": "🔒 Збагвад е:"}.get(lang, "🔒 Booked:")
-    no_free_label = {"en": "🔴 No free time this day.", "ru": "🔴 Свободного времени нет.", "hy": "🔴 Азат жам чка."}.get(lang, "🔴 No free time this day.")
+    free_label    = get_text(lang, "free_label")
+    booked_label  = get_text(lang, "booked_label")
+    no_free_label = get_text(lang, "no_free_label")
 
     if free_slots:
         lines.append(free_label)

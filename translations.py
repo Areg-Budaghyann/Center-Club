@@ -192,9 +192,13 @@ T: dict[str, dict[str, str]] = {
         "recurring_pick_from_month": "Choose the START month:",
         "recurring_pick_to_month":   "Choose the END month:",
 
+        # ── Free time check ──────────────────────────────────────────────
+
+        "free_label":    "🟢 Free:",
+        "booked_label":  "🔒 Booked:",
+        "no_free_label": "🔴 No free time this day.",
+
     },
-
-
     # -----------------------------------------------------------------------
     # RUSSIAN
     # -----------------------------------------------------------------------
@@ -312,8 +316,13 @@ T: dict[str, dict[str, str]] = {
         "recurring_title_invalid": "Введите корректное название (1–80 символов).",
         "recurring_pick_from_month": "Выберите месяц НАЧАЛА:",
         "recurring_pick_to_month":   "Выберите месяц КОНЦА:",
-    },
 
+        # ── Free time check ──────────────────────────────────────────────
+
+        "free_label":    "🟢 Свободно:",
+        "booked_label":  "🔒 Занято:",
+        "no_free_label": "🔴 Свободного времени нет.",
+    },
     # -----------------------------------------------------------------------
     # ARMENIAN
     # -----------------------------------------------------------------------
@@ -431,6 +440,12 @@ T: dict[str, dict[str, str]] = {
         "recurring_title_invalid": "Խնդրում ենք մուտքագրել վավեր անուն (1–80 նիշ)։",
         "recurring_pick_from_month": "Ընտրեք ՄԵԿՆԱՐԿԻ ամիսը:",
         "recurring_pick_to_month":   "Ընտրեք ԱՎԱՐՏԻ ամիսը:",
+
+        # ── Free time check ──────────────────────────────────────────────
+
+        "free_label":    "🟢 Ազատ ժամեր:",
+        "booked_label":  "🔒 Զբաղված է:",
+        "no_free_label": "🔴 Ազատ ժամ չկա։",
     },
 }
 
