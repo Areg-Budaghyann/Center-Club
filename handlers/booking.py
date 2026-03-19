@@ -588,18 +588,12 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 with _db._connect() as conn:
                     row = conn.execute("SELECT lang FROM users WHERE user_id=?", (uid,)).fetchone()
                 ul = row["lang"] if row else "en"
-                # Build notification — fix @user for users without username
-                _notif_user = f"@{new_booking.username}" if user.username else new_booking.username
-                _raw = get_text(ul, "group_notification",
+                msg = "📢 " + get_text(ul, "group_notification",
                                day=_day_name(ul),
                                start=new_booking.start_time,
                                end=new_booking.end_time,
                                title=new_booking.title,
-                               user=new_booking.username)
-                # Remove @ if user has no username (translation adds it)
-                if not user.username:
-                    _raw = _raw.replace(f"@{new_booking.username}", new_booking.username)
-                msg = "📢 " + get_text(ul, "btn_book_office") + "\n\n" + _raw
+                               user=new_booking.display_user)
                 await context.bot.send_message(
                     chat_id=uid,
                     text=msg,
