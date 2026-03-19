@@ -21,7 +21,7 @@ from telegram.ext import (
     MessageHandler, filters,
 )
 
-from translations import get_text, MONTH_NAMES, MONTH_SHORT, DEFAULT_LANG
+from translations import get_text, MONTH_NAMES, MONTH_SHORT, DEFAULT_LANG, WEEKDAY_HEADERS
 from config import (
     GROUP_CHAT_ID, MAX_DURATION_HOURS, MIN_DURATION_HOURS,
     OFFICE_CLOSE, OFFICE_OPEN,
@@ -76,13 +76,6 @@ def _storage_name(user) -> str:
 logger = logging.getLogger(__name__)
 
 # Weekday headers per language — short 2-letter abbreviations
-WEEKDAY_HEADERS = {
-    "en": ["Mon", "Tus", "Wed", "Thr", "Fri", "Sat", "Sun"],
-    "ru": ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
-    "hy": ["Երկ", "Երք", "Չոր", "Հին", "Ուբр", "Շбт", "Кир"],
-}
-
-
 def _lang(context: ContextTypes.DEFAULT_TYPE) -> str:
     return context.user_data.get("lang", DEFAULT_LANG)
 
@@ -467,24 +460,16 @@ async def enter_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     duration     = context.user_data["duration"]
     end_hour     = start_hour + duration
     u = update.effective_user
-    # Format user correctly: @username if has one, else real name without @
-    user_display = _display_name(u)
+    user_display = _display_name(u)  # @username OR "First Last"
 
-    # Step 4 — Build preview using translation but fix @user issue
-    # get_text adds @ to {user}, so pass user WITHOUT @ for no-username users
-    # and WITH @ stripped for username users (translation re-adds it)
-    preview = get_text(
-        lang, "confirm_preview",
-        title    = title,
-        date     = chosen_date,
-        start    = f"{start_hour:02d}",
-        end      = f"{end_hour:02d}",
-        duration = duration,
-        user     = _display_name(u),  # _display_name returns username (no @) or real name
+    # Build preview manually to avoid @{user} template issue
+    preview = (
+        "✅ " + get_text(lang, "btn_confirm").replace("✅", "").strip() + ":\n\n"
+        + f"📋 {title}\n"
+        + f"📅 {chosen_date}\n"
+        + f"🕐 {start_hour:02d}:00 – {end_hour:02d}:00  ({duration}h)\n"
+        + f"👤 {user_display}"
     )
-    # Fix: if user has no username, remove the @ that translation added
-    if not u.username:
-        preview = preview.replace(f"@{_display_name(u)}", _display_name(u))
     title_msg_id = context.user_data.get("title_prompt_msg_id")
     if title_msg_id:
         # Edit the existing "Step 4" message into the confirmation card
