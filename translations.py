@@ -95,7 +95,7 @@ T: dict[str, dict[str, str]] = {
         "slot_taken_detail":     "🔒 Already booked!\n\n📋 {title}\n🕐 {start} – {end}\n👤 {user}",
 
         # ── GROUP NOTIFICATION ──────────────────────────────────────────────
-        "group_notification":    "📢 New club booking\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 *{title}*\n👤 Organiser: @{user}",
+        "group_notification":    "📢 New club booking\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 {title}\n👤 Organiser: {user}",
 
         # ── MY BOOKINGS ─────────────────────────────────────────────────────
         "my_bookings_title":     "📌 My bookings — tap one to manage it:",
@@ -242,7 +242,7 @@ T: dict[str, dict[str, str]] = {
         "slot_taken_alert":      "⛔ Этот час уже занят.",
         "slot_taken_detail":     "🔒 Уже занято!\n\n📋 {title}\n🕐 {start} – {end}\n👤 {user}",
 
-        "group_notification":    "📢 Новое бронирование клуба\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 *{title}*\n👤 Организатор: @{user}",
+        "group_notification":    "📢 Новое бронирование клуба\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 {title}\n👤 Организатор: {user}",
 
         "my_bookings_title":     "📌 Мои брони — нажмите для управления:",
         "my_bookings_empty":     "📌 Мои брони\n\nУ вас нет предстоящих броней.",
@@ -360,7 +360,7 @@ T: dict[str, dict[str, str]] = {
         "slot_taken_alert":      "⛔ Այս ժամը արդեն զբաղված է։",
         "slot_taken_detail":     "🔒 Արդեն զբաղված է!\n\n📋 {title}\n🕐 {start} – {end}\n👤 {user}",
 
-        "group_notification":    "📢 Ակումբի նոր ամրագրում\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 *{title}*\n👤 Ամրագրում է: @{user}",
+        "group_notification":    "📢 Ակումբի նոր ամրագրում\n\n📅 {day}\n🕐 {start} – {end}\n\n📋 {title}\n👤 Ամրագրում է: {user}",
 
         "my_bookings_title":     "📌 Իմ ամրագրումները — սեղմեք կառավարելու համար.",
         "my_bookings_empty":     "📌 Իմ ամրագրումները\n\nԴուք չունեք առաջիկա ամրագրումներ։",
