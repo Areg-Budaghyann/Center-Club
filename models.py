@@ -41,9 +41,17 @@ class Booking:
         """Return True if this booking overlaps with other (same date assumed)."""
         return self.start_dt < other.end_dt and other.start_dt < self.end_dt
 
+    @property
+    def display_user(self) -> str:
+        """Format username correctly: @username or Full Name."""
+        # If no spaces → it's a Telegram username → add @
+        if self.username and " " not in self.username:
+            return f"@{self.username}"
+        return self.username or "Unknown"
+
     def short_label(self) -> str:
         """One-line summary used in schedule views."""
-        return f"{self.start_time} – {self.end_time} | {self.title} | @{self.username}"
+        return f"{self.start_time} – {self.end_time} | {self.title} | {self.display_user}"
 
     def full_text(self) -> str:
         """Multi-line detail card."""
@@ -51,5 +59,5 @@ class Booking:
             f"📋 {self.title}\n"
             f"📅 {self.date}\n"
             f"🕐 {self.start_time} – {self.end_time} ({self.duration}h)\n"
-            f"👤 @{self.username}"
+            f"👤 {self.display_user}"
         )
