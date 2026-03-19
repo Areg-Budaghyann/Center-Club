@@ -24,7 +24,7 @@ def _date_range(start: date, end: date) -> Iterator[date]:
         current += timedelta(days=1)
 
 
-from translations import WEEKDAY_NAMES
+from translations import WEEKDAY_NAMES, get_text
 
 
 # ── Weekly schedule ───────────────────────────────────────────────────────────
