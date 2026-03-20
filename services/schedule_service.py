@@ -68,7 +68,13 @@ def build_weekly_schedule(reference_date: date | None = None, lang: str = "en") 
                 lines.append(f"   👤 {b.display_user}")
             lines.append("")
         else:
-            lines.append(f"📆 {day_name}, {date_str}{today_mark}  {free_word}")
+            free_slots = get_free_slots(d)
+            lines.append(f"📆 {day_name}, {date_str}{today_mark}")
+            if free_slots:
+                for s, e in free_slots:
+                    lines.append(f"   🟢 {s} – {e}")
+            else:
+                lines.append(f"   {free_word}")
             lines.append("")
 
     return "\n".join(lines).strip()
