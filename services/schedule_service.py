@@ -48,18 +48,35 @@ def build_weekly_schedule(reference_date: date | None = None, lang: str = "en") 
         by_date.setdefault(b.date, []).append(b)
 
     day_names = WEEKDAY_NAMES.get(lang, WEEKDAY_NAMES["en"])
-    free_word  = get_text(lang, "free_label").replace("🟢 ", "").replace(":", "")
-    lines = [f"📅 {monday.strftime('%d.%m')} – {sunday.strftime('%d.%m')}\n"]
+    free_word  = get_text(lang, "free_label")
+
+    # Header
+    lines = [
+        f"┌─────────────────────────┐",
+        f"  📅  {monday.strftime('%d.%m')} — {sunday.strftime('%d.%m')}",
+        f"└─────────────────────────┘",
+        "",
+    ]
+
     for d in _date_range(monday, sunday):
-        day_str = d.isoformat()
-        day_label = f"{day_names[d.weekday()]} {d.strftime('%d.%m')}"
+        day_str   = d.isoformat()
+        day_name  = day_names[d.weekday()]
+        date_str  = d.strftime("%d.%m")
+        is_today  = d == date.today()
+        today_mark = " ◀" if is_today else ""
+
         if day_str in by_date:
-            lines.append(day_label)
+            lines.append(f"📆  {day_name}  {date_str}{today_mark}")
+            lines.append("─" * 28)
             for b in by_date[day_str]:
-                lines.append(f"  {b.short_label()}")
+                lines.append(f"  🕐 {b.start_time} – {b.end_time}")
+                lines.append(f"  📋 {b.title}")
+                lines.append(f"  👤 {b.display_user}")
+            lines.append("")
         else:
-            lines.append(f"{day_label}\n  {free_word}")
-        lines.append("")  # blank line between days
+            lines.append(f"📆  {day_name}  {date_str}{today_mark}")
+            lines.append(f"  {free_word}")
+            lines.append("")
 
     return "\n".join(lines).strip()
 
@@ -80,18 +97,28 @@ def build_monthly_schedule(year: int, month: int, lang: str = "en") -> str:
 
     from translations import MONTH_NAMES
     month_name = MONTH_NAMES.get(lang, MONTH_NAMES["en"])[month - 1]
-    lines = [f"📅 {month_name} {year}\n"]
+
+    lines = [
+        f"┌─────────────────────────┐",
+        f"  📅  {month_name} {year}",
+        f"└─────────────────────────┘",
+        "",
+    ]
+
     for d in _date_range(first, last):
-        day_str = d.isoformat()
+        day_str  = d.isoformat()
+        is_today = d == date.today()
+        today_mark = " ◀" if is_today else ""
         if day_str in by_date:
-            day_label = f"{d.day:02d}"
-            lines.append(day_label)
+            lines.append(f"📆  {d.day:02d}.{d.month:02d}{today_mark}")
+            lines.append("─" * 28)
             for b in by_date[day_str]:
-                lines.append(f"  {b.short_label()}")
+                lines.append(f"  🕐 {b.start_time} – {b.end_time}")
+                lines.append(f"  📋 {b.title}")
+                lines.append(f"  👤 {b.display_user}")
             lines.append("")
 
-    if len(lines) == 1:  # only the header line — no bookings found
-        from translations import get_text
+    if len(lines) == 4:  # only header lines — no bookings
         lines.append(get_text(lang, "no_bookings_this_month"))
 
     return "\n".join(lines).strip()
