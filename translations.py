@@ -144,7 +144,7 @@ T: dict[str, dict[str, str]] = {
         "btn_next_week":         "📅Next week",
         "btn_this_month":        "📆 This month",
         "btn_next_month":        "📆Next month",
-        "no_bookings_this_month":"_No bookings this month._",
+        "no_bookings_this_month":"No bookings this month.",
         "no_bookings_day":       "📭 No bookings for this day.",
 
         # ── FREE TIME ───────────────────────────────────────────────────────
@@ -197,6 +197,10 @@ T: dict[str, dict[str, str]] = {
         "free_label":    "🟢 Free:",
         "booked_label":  "🔒 Booked:",
         "no_free_label": "🔴 No free time this day.",
+
+         # ── 1 hour reminder ──────────────────────────────────────────────
+        "reminder_title":   "⏰ Your booking starts in {minutes} minutes!",
+        "reminder_headsup": "⏰ Club booked in {minutes} minutes",  
 
     },
     # -----------------------------------------------------------------------
@@ -289,7 +293,7 @@ T: dict[str, dict[str, str]] = {
         "btn_next_week":         "📅 Следующая неделя",
         "btn_this_month":        "📆 Этот месяц",
         "btn_next_month":        "📆 Следующий месяц",
-        "no_bookings_this_month":"_Броней в этом месяце нет._",
+        "no_bookings_this_month":"Броней в этом месяце нет.",
         "no_bookings_day":       "📭 На этот день броней нет.",
 
         "free_time_title":       "🟢 Свободное время — выберите день:",
@@ -322,6 +326,10 @@ T: dict[str, dict[str, str]] = {
         "free_label":    "🟢 Свободно:",
         "booked_label":  "🔒 Занято:",
         "no_free_label": "🔴 Свободного времени нет.",
+
+        # ── 1 hour reminder ──────────────────────────────────────────────
+        "reminder_title":   "⏰ Ваше бронирование начинается через {minutes} минут!",
+        "reminder_headsup": "⏰ Клуб занят через {minutes} минут",
     },
     # -----------------------------------------------------------------------
     # ARMENIAN
@@ -413,7 +421,7 @@ T: dict[str, dict[str, str]] = {
         "btn_next_week":         "📅 Հաջորդ շաբաթ",
         "btn_this_month":        "📆 Այս ամիս",
         "btn_next_month":        "📆 Հաջորդ ամիս",
-        "no_bookings_this_month":"_Այս ամիս ամրագրումներ չկան։_",
+        "no_bookings_this_month":"Այս ամիս ամրագրումներ չկան։",
         "no_bookings_day":       "📭 Այս օրվա համար ամրագրումներ չկան։",
 
         "free_time_title":       "🟢 Ազատ ժամեր — ընտրեք օր:",
@@ -446,6 +454,11 @@ T: dict[str, dict[str, str]] = {
         "free_label":    "🟢 Ազատ ժամեր:",
         "booked_label":  "🔒 Զբաղված է:",
         "no_free_label": "🔴 Ազատ ժամ չկա։",
+
+
+        # ── 1 hour reminder ──────────────────────────────────────────────
+        "reminder_title":   "⏰ Your booking starts in {minutes} minutes!",
+        "reminder_headsup": "⏰ Club booked in {minutes} minutes",
     },
 }
 
