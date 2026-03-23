@@ -160,7 +160,8 @@ def _events_text(lang: str) -> tuple[str, InlineKeyboardMarkup]:
         lines.append("━━━━━━━━━━━━━━━━━━━━━━")
         lines.append(f"📌 {e['title']}")
         lines.append(f"📅 {e['event_date']}")
-        lines.append(f"🕐 {e['event_time']}")
+        if e.get('event_time'):
+            lines.append(f"🕐 {e['event_time']}")
         lines.append(f"📍 {e['location']}")
         if e.get('description'):
             lines.append(f"📝 {e['description']}")
