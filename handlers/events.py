@@ -29,9 +29,7 @@ from translations import get_text, DEFAULT_LANG, MONTH_SHORT, WEEKDAY_HEADERS
 logger = logging.getLogger(__name__)
 
 # Conversation states
-(S_MONTH, S_DAY, S_END_MONTH, S_END_DAY,
- S_START_HOUR, S_END_HOUR,
- S_TITLE, S_DESC, S_CONFIRM) = range(9)
+(S_MONTH, S_DAY, S_END_MONTH, S_END_DAY, S_TITLE, S_DESC, S_CONFIRM) = range(7)
 
 
 def _lang(context) -> str:
@@ -330,11 +328,12 @@ async def ev_pick_end_day(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     start_date  = context.user_data["ev_date_start"]
     context.user_data["ev_date_end"] = end_date
 
-    await query.edit_message_text(
-        _et(lang, "ev_pick_start").format(date=f"{start_date} – {end_date}"),
-        reply_markup=_kb_ev_hour(lang, "ev_start", "ev_back_end_month"),
+    context.user_data["ev_date"] = f"{start_date} – {end_date}"
+    msg = await query.edit_message_text(
+        f"📅 {start_date} – {end_date}\n\n✏️ Enter event title:",
     )
-    return S_START_HOUR
+    context.user_data["ev_msg_id"] = msg.message_id
+    return S_TITLE
 
 async def ev_pick_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
@@ -406,21 +405,24 @@ async def ev_enter_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     end_h   = context.user_data["ev_end"]
     msg_id  = context.user_data.get("ev_msg_id")
 
-    text = _et(lang, "ev_enter_desc").format(
-        date=chosen_date,
-        start=f"{start_h:02d}",
-        end=f"{end_h:02d}",
-        title=title,
-    )
-
+    chosen_date = context.user_data["ev_date"]
+    skip_kb = InlineKeyboardMarkup([[
+        InlineKeyboardButton("⏭ Skip description", callback_data="ev_skip_desc")
+    ]])
+    text = f"📅 {chosen_date}\n📌 {title}\n\n✏️ Enter description (or skip):"
     try:
         await context.bot.edit_message_text(
             chat_id=update.effective_chat.id,
             message_id=msg_id,
             text=text,
+            reply_markup=skip_kb,
         )
     except Exception:
-        msg = await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+        msg = await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=text,
+            reply_markup=skip_kb,
+        )
         context.user_data["ev_msg_id"] = msg.message_id
     return S_DESC
 
@@ -452,6 +454,30 @@ async def ev_enter_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     return S_CONFIRM  # reuse S_CONFIRM state for location input
 
 
+
+async def ev_skip_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """User skipped description — go straight to location."""
+    query = update.callback_query
+    await query.answer()
+    context.user_data["ev_desc"] = ""
+    lang = _lang(context)
+    chosen_date = context.user_data["ev_date"]
+    title       = context.user_data["ev_title"]
+    msg_id      = context.user_data.get("ev_msg_id")
+
+    text = f"📅 {chosen_date}\n📌 {title}\n\n📍 Enter location:"
+    try:
+        await context.bot.edit_message_text(
+            chat_id=query.message.chat_id,
+            message_id=msg_id,
+            text=text,
+        )
+    except Exception:
+        msg = await context.bot.send_message(chat_id=query.message.chat_id, text=text)
+        context.user_data["ev_msg_id"] = msg.message_id
+    return S_CONFIRM
+
+
 async def ev_enter_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     lang = _lang(context)
     location = update.message.text.strip()
@@ -460,19 +486,16 @@ async def ev_enter_location(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     context.user_data["ev_location"] = location
     chosen_date = context.user_data["ev_date"]
-    start_h = context.user_data["ev_start"]
-    end_h   = context.user_data["ev_end"]
     title   = context.user_data["ev_title"]
-    desc    = context.user_data["ev_desc"]
+    desc    = context.user_data.get("ev_desc", "")
     msg_id  = context.user_data.get("ev_msg_id")
 
-    preview = _et(lang, "ev_confirm").format(
-        title=title,
-        date=chosen_date,
-        start=f"{start_h:02d}",
-        end=f"{end_h:02d}",
-        location=location,
-        desc=desc,
+    preview = (
+        f"✅ Confirm new event:\n\n"
+        f"📌 {title}\n"
+        f"📅 {chosen_date}\n"
+        f"📍 {location}\n"
+        + (f"\n📝 {desc}" if desc else "")
     )
     kb = InlineKeyboardMarkup([[
         InlineKeyboardButton("✅ Save", callback_data="ev_save"),
@@ -509,15 +532,13 @@ async def ev_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     title    = context.user_data["ev_title"]
     date_str = context.user_data["ev_date"]
-    start_h  = context.user_data["ev_start"]
-    end_h    = context.user_data["ev_end"]
     location = context.user_data["ev_location"]
-    desc     = context.user_data["ev_desc"]
+    desc     = context.user_data.get("ev_desc", "")
 
     event_id = db.create_special_event(
         title      = title,
         event_date = date_str,
-        event_time = f"{start_h:02d}:00 – {end_h:02d}:00",
+        event_time = "",
         location   = location,
         description= desc,
     )
@@ -618,25 +639,15 @@ def register(application: Application) -> None:
                 CallbackQueryHandler(ev_noop,            pattern="^ev_noop$"),
                 CallbackQueryHandler(ev_cancel,          pattern="^ev_cancel$"),
             ],
-            S_START_HOUR: [
-                CallbackQueryHandler(ev_pick_start,      pattern=r"^ev_start:\d+$"),
-                CallbackQueryHandler(ev_back_end_month,  pattern="^ev_back_end_month$"),
-                CallbackQueryHandler(ev_noop,            pattern="^ev_noop$"),
-                CallbackQueryHandler(ev_cancel,          pattern="^ev_cancel$"),
-            ],
-            S_END_HOUR: [
-                CallbackQueryHandler(ev_pick_end,   pattern=r"^ev_end:\d+$"),
-                CallbackQueryHandler(ev_back_start, pattern="^ev_back_start$"),
-                CallbackQueryHandler(ev_noop,       pattern="^ev_noop$"),
-                CallbackQueryHandler(ev_cancel,     pattern="^ev_cancel$"),
-            ],
+
             S_TITLE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, ev_enter_title),
                 CallbackQueryHandler(ev_cancel, pattern="^ev_cancel$"),
             ],
             S_DESC: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, ev_enter_desc),
-                CallbackQueryHandler(ev_cancel, pattern="^ev_cancel$"),
+                CallbackQueryHandler(ev_skip_desc, pattern="^ev_skip_desc$"),
+                CallbackQueryHandler(ev_cancel,    pattern="^ev_cancel$"),
             ],
             S_CONFIRM: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, ev_enter_location),
