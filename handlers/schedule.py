@@ -112,6 +112,26 @@ def _kb_freetime_day(year: int, month: int, lang: str) -> tuple[InlineKeyboardMa
     header_row = [InlineKeyboardButton(h, callback_data="ft_noop") for h in headers]
     rows = [header_row]
 
+    # Get event dates for this month
+    import database as _fdb
+    ft_events = _fdb.get_special_events_for_month(year, month)
+    ft_event_dates = set()
+    for ev in ft_events:
+        parts = ev["event_date"].replace(" ", "").split("–")
+        if len(parts) == 2:
+            try:
+                from datetime import date as _d2
+                s = _d2.fromisoformat(parts[0])
+                e = _d2.fromisoformat(parts[1])
+                cur = s
+                while cur <= e:
+                    ft_event_dates.add(cur.isoformat())
+                    cur = _d2.fromordinal(cur.toordinal() + 1)
+            except Exception:
+                pass
+        else:
+            ft_event_dates.add(ev["event_date"].strip())
+
     for week in calendar.monthcalendar(year, month):
         row = []
         for day_num in week:
@@ -119,12 +139,15 @@ def _kb_freetime_day(year: int, month: int, lang: str) -> tuple[InlineKeyboardMa
                 row.append(InlineKeyboardButton(" ", callback_data="ft_noop"))
             else:
                 d = date(year, month, day_num)
+                has_ev = d.isoformat() in ft_event_dates
                 if d < today:
                     row.append(InlineKeyboardButton(str(day_num), callback_data="ft_past"))
                 elif d == today:
-                    row.append(InlineKeyboardButton(f"[{day_num}]", callback_data=f"ft_day:{d.isoformat()}"))
+                    label = f"[{day_num}]🎉" if has_ev else f"[{day_num}]"
+                    row.append(InlineKeyboardButton(label, callback_data=f"ft_day:{d.isoformat()}"))
                 else:
-                    row.append(InlineKeyboardButton(str(day_num), callback_data=f"ft_day:{d.isoformat()}"))
+                    label = f"{day_num}🎉" if has_ev else str(day_num)
+                    row.append(InlineKeyboardButton(label, callback_data=f"ft_day:{d.isoformat()}"))
         rows.append(row)
 
     rows.append([InlineKeyboardButton(get_text(lang, "btn_back"), callback_data="ft_back_month")])
@@ -211,6 +234,18 @@ async def freetime_pick_day(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             lines.append(f"  {b.start_time} – {b.end_time} | {b.title} (@{b.username})")
     else:
         lines.append("\n" + get_text(lang, "no_bookings_day"))
+
+    # Special events section
+    import database as _db2
+    from services.schedule_service import _date_in_event_range_str
+    day_events = [e for e in _db2.get_all_special_events()
+                  if _date_in_event_range_str(target_date.isoformat(), e["event_date"])]
+    if day_events:
+        lines.append("\n🎉 Special events:")
+        for ev in day_events:
+            lines.append(f"  📌 {ev['title']}")
+            if ev.get("location"):
+                lines.append(f"  📍 {ev['location']}")
 
     # Back button to day grid
     year  = context.user_data.get("ft_year")

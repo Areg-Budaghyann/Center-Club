@@ -52,24 +52,52 @@ def build_weekly_schedule(reference_date: date | None = None, lang: str = "en") 
 
     lines = [f"📅  {monday.strftime('%d.%m')} — {sunday.strftime('%d.%m')}\n"]
 
+    # Fetch special events for this week
+    week_events = db.get_special_events_for_date_range(monday.isoformat(), sunday.isoformat())
+    ev_by_date: dict[str, list] = {}
+    for ev in week_events:
+        parts = ev["event_date"].replace(" ", "").split("–")
+        if len(parts) == 2:
+            try:
+                from datetime import date as _d2
+                s = _d2.fromisoformat(parts[0])
+                e2 = _d2.fromisoformat(parts[1])
+                cur = s
+                while cur <= e2:
+                    ev_by_date.setdefault(cur.isoformat(), []).append(ev)
+                    cur = _d2.fromordinal(cur.toordinal() + 1)
+            except Exception:
+                pass
+        else:
+            ev_by_date.setdefault(ev["event_date"].strip(), []).append(ev)
+
     for d in _date_range(monday, sunday):
         day_str    = d.isoformat()
         day_name   = day_names[d.weekday()]
         date_str   = d.strftime("%d.%m")
         is_today   = d == date.today()
         today_mark = " ◀" if is_today else ""
+        day_evs    = ev_by_date.get(day_str, [])
+        has_event  = bool(day_evs)
 
-        if day_str in by_date:
-            lines.append(f"📆 {day_name}, {date_str}{today_mark}")
-            for b in by_date[day_str]:
+        day_header = f"📆 {day_name}, {date_str}{today_mark}" + (" 🎉" if has_event else "")
+
+        if day_str in by_date or has_event:
+            lines.append(day_header)
+            for b in by_date.get(day_str, []):
                 lines.append(f"")
                 lines.append(f"   🕐 {b.start_time} – {b.end_time}")
                 lines.append(f"   📋 {b.title}")
                 lines.append(f"   👤 {b.display_user}")
+            for ev in day_evs:
+                lines.append(f"")
+                lines.append(f"   🎉 {ev['title']}")
+                if ev.get("location"):
+                    lines.append(f"   📍 {ev['location']}")
             lines.append("")
         else:
             free_slots = get_free_slots(d)
-            lines.append(f"📆 {day_name}, {date_str}{today_mark}")
+            lines.append(day_header)
             if free_slots:
                 for s, e in free_slots:
                     lines.append(f"   🟢 {s} – {e}")
@@ -99,17 +127,45 @@ def build_monthly_schedule(year: int, month: int, lang: str = "en") -> str:
 
     lines = [f"📅  {month_name} {year}\n"]
 
+    # Fetch special events for this month
+    month_events = db.get_special_events_for_date_range(first.isoformat(), last.isoformat())
+    mev_by_date: dict[str, list] = {}
+    for ev in month_events:
+        parts = ev["event_date"].replace(" ", "").split("–")
+        if len(parts) == 2:
+            try:
+                from datetime import date as _d2
+                s = _d2.fromisoformat(parts[0])
+                e2 = _d2.fromisoformat(parts[1])
+                cur = s
+                while cur <= e2:
+                    if cur.month == month:
+                        mev_by_date.setdefault(cur.isoformat(), []).append(ev)
+                    cur = _d2.fromordinal(cur.toordinal() + 1)
+            except Exception:
+                pass
+        else:
+            mev_by_date.setdefault(ev["event_date"].strip(), []).append(ev)
+
     for d in _date_range(first, last):
-        day_str  = d.isoformat()
-        is_today = d == date.today()
+        day_str    = d.isoformat()
+        is_today   = d == date.today()
         today_mark = " ◀" if is_today else ""
-        if day_str in by_date:
-            lines.append(f"📆 {d.day:02d}.{d.month:02d}{today_mark}")
-            for b in by_date[day_str]:
+        day_evs    = mev_by_date.get(day_str, [])
+
+        if day_str in by_date or day_evs:
+            ev_mark = " 🎉" if day_evs else ""
+            lines.append(f"📆 {d.day:02d}.{d.month:02d}{today_mark}{ev_mark}")
+            for b in by_date.get(day_str, []):
                 lines.append(f"")
                 lines.append(f"   🕐 {b.start_time} – {b.end_time}")
                 lines.append(f"   📋 {b.title}")
                 lines.append(f"   👤 {b.display_user}")
+            for ev in day_evs:
+                lines.append(f"")
+                lines.append(f"   🎉 {ev['title']}")
+                if ev.get("location"):
+                    lines.append(f"   📍 {ev['location']}")
             lines.append("")
 
     if len(lines) == 1:
@@ -152,3 +208,15 @@ def format_free_slots(target_date: date) -> str:
         return header + "_No free time available._"
     body = "\n".join(f"  {s} – {e}" for s, e in slots)
     return header + body
+
+
+def _date_in_event_range_str(date_str: str, event_date: str) -> bool:
+    """Check if a date string falls within an event's date range."""
+    try:
+        from datetime import date as _d
+        parts = event_date.replace(" ", "").split("–")
+        if len(parts) == 2:
+            return _d.fromisoformat(parts[0]) <= _d.fromisoformat(date_str) <= _d.fromisoformat(parts[1])
+        return date_str == event_date.strip()
+    except Exception:
+        return False

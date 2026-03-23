@@ -329,6 +329,36 @@ def create_special_event(title: str, event_date: str, event_time: str, location:
         return cur.lastrowid
 
 
+def get_special_events_for_date_range(start_date: str, end_date: str) -> list[dict]:
+    """Return special events that overlap with [start_date, end_date]."""
+    _ensure_special_events_table()
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM special_events
+            WHERE event_date >= ? AND event_date <= ?
+            ORDER BY event_date
+            """,
+            (start_date, end_date),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_special_events_for_month(year: int, month: int) -> list[dict]:
+    """Return all special events in a given month."""
+    _ensure_special_events_table()
+    from datetime import date
+    from calendar import monthrange
+    first = date(year, month, 1).isoformat()
+    last  = date(year, month, monthrange(year, month)[1]).isoformat()
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM special_events WHERE event_date >= ? AND event_date <= ? ORDER BY event_date",
+            (first, last),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
 def get_all_special_events() -> list[dict]:
     """Return all upcoming special events sorted by date."""
     _ensure_special_events_table()

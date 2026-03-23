@@ -75,6 +75,20 @@ def _storage_name(user) -> str:
 
 logger = logging.getLogger(__name__)
 
+def _date_in_event_range(date_str: str, event_date: str) -> bool:
+    """Check if a date falls within an event's date range."""
+    try:
+        from datetime import date as _d
+        parts = event_date.replace(" ", "").split("–")
+        if len(parts) == 2:
+            return _d.fromisoformat(parts[0]) <= _d.fromisoformat(date_str) <= _d.fromisoformat(parts[1])
+        return date_str == event_date.strip()
+    except Exception:
+        return False
+
+
+
+
 # Weekday headers per language — short 2-letter abbreviations
 def _lang(context: ContextTypes.DEFAULT_TYPE) -> str:
     return context.user_data.get("lang", DEFAULT_LANG)
@@ -135,6 +149,27 @@ def _kb_day(year: int, month: int, lang: str):
     header_row = [InlineKeyboardButton(h, callback_data="cal_noop") for h in headers]
     rows = [header_row]
 
+    # Get event dates for this month
+    import database as _db
+    event_dicts = _db.get_special_events_for_month(year, month)
+    event_dates = set()
+    for ev in event_dicts:
+        # event_date can be "2026-03-24" or "2026-03-24 – 2026-03-28"
+        parts = ev["event_date"].replace(" ", "").split("–")
+        if len(parts) == 2:
+            try:
+                from datetime import date as _date2
+                s = _date2.fromisoformat(parts[0])
+                e = _date2.fromisoformat(parts[1])
+                d2 = s
+                while d2 <= e:
+                    event_dates.add(d2.isoformat())
+                    d2 = _date2(d2.year, d2.month, d2.day + 1) if d2.day < 28 else _date2.fromordinal(d2.toordinal() + 1)
+            except Exception:
+                pass
+        else:
+            event_dates.add(ev["event_date"].strip())
+
     for week in calendar.monthcalendar(year, month):
         row = []
         for day_num in week:
@@ -142,12 +177,15 @@ def _kb_day(year: int, month: int, lang: str):
                 row.append(InlineKeyboardButton(" ", callback_data="cal_noop"))
             else:
                 d = date(year, month, day_num)
+                has_event = d.isoformat() in event_dates
                 if d < today:
                     row.append(InlineKeyboardButton(str(day_num), callback_data="cal_past"))
                 elif d == today:
-                    row.append(InlineKeyboardButton(f"[{day_num}]", callback_data=f"date:{d.isoformat()}"))
+                    label = f"[{day_num}]🎉" if has_event else f"[{day_num}]"
+                    row.append(InlineKeyboardButton(label, callback_data=f"date:{d.isoformat()}"))
                 else:
-                    row.append(InlineKeyboardButton(str(day_num), callback_data=f"date:{d.isoformat()}"))
+                    label = f"{day_num}🎉" if has_event else str(day_num)
+                    row.append(InlineKeyboardButton(label, callback_data=f"date:{d.isoformat()}"))
         rows.append(row)
 
     rows.append([InlineKeyboardButton(get_text(lang, "btn_back"), callback_data="back_to_month")])
@@ -282,8 +320,18 @@ async def pick_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     lang = _lang(context)
     context.user_data["date"] = chosen_date
 
+    # Check for special events on this date
+    import database as _db2
+    day_events = [e for e in _db2.get_all_special_events()
+                  if _date_in_event_range(chosen_date, e["event_date"])]
+    event_notice = ""
+    if day_events:
+        event_notice = "\n\n🎉 " + "\n🎉 ".join(
+            f"{e['title']} ({e['event_date']})" for e in day_events
+        )
+
     await query.edit_message_text(
-        get_text(lang, "choose_time", date=chosen_date),
+        get_text(lang, "choose_time", date=chosen_date) + event_notice,
         reply_markup=_kb_hour(chosen_date, lang),
     )
     return STATE_PICK_HOUR
@@ -364,8 +412,18 @@ async def back_to_hour(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     lang = _lang(context)
     chosen_date = context.user_data["date"]
 
+    # Check for special events on this date
+    import database as _db2
+    day_events = [e for e in _db2.get_all_special_events()
+                  if _date_in_event_range(chosen_date, e["event_date"])]
+    event_notice = ""
+    if day_events:
+        event_notice = "\n\n🎉 " + "\n🎉 ".join(
+            f"{e['title']} ({e['event_date']})" for e in day_events
+        )
+
     await query.edit_message_text(
-        get_text(lang, "choose_time", date=chosen_date),
+        get_text(lang, "choose_time", date=chosen_date) + event_notice,
         reply_markup=_kb_hour(chosen_date, lang),
     )
     return STATE_PICK_HOUR
