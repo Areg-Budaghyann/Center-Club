@@ -401,11 +401,7 @@ async def ev_enter_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     context.user_data["ev_title"] = title
     chosen_date = context.user_data["ev_date"]
-    start_h = context.user_data["ev_start"]
-    end_h   = context.user_data["ev_end"]
     msg_id  = context.user_data.get("ev_msg_id")
-
-    chosen_date = context.user_data["ev_date"]
     skip_kb = InlineKeyboardMarkup([[
         InlineKeyboardButton("⏭ Skip description", callback_data="ev_skip_desc")
     ]])
