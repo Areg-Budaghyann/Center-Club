@@ -161,6 +161,8 @@ T: dict[str, dict[str, str]] = {
         "no_permission":         "⛔ You don't have permission to use this command.",
         "btn_dismiss":           "👌 OK, got you!",
 
+        "btn_events": "🎉 Special events",
+
         # ── RECURRING BOOKINGS ──────────────────────────────────────────────
         "recurring_intro":       (
             "📅 *Recurring booking*\n\n"
@@ -198,9 +200,14 @@ T: dict[str, dict[str, str]] = {
         "booked_label":  "🔒 Booked:",
         "no_free_label": "🔴 No free time this day.",
 
-         # ── 1 hour reminder ──────────────────────────────────────────────
+        # ── 1 hour reminder ──────────────────────────────────────────────
         "reminder_title":   "⏰ Your booking starts in {minutes} minutes!",
         "reminder_headsup": "⏰ Club booked in {minutes} minutes",  
+
+
+        # ── Upcoming events ──────────────────────────────────────────────
+        "events_title": "🎉 Upcoming special events",
+        "events_empty": "🎉 No upcoming special events.",
 
     },
     # -----------------------------------------------------------------------
@@ -308,6 +315,8 @@ T: dict[str, dict[str, str]] = {
         "no_permission":         "⛔ У вас нет прав для этой команды.",
         "btn_dismiss":           "👌 Окей, понятно",
 
+        "btn_events": "🎉 Спец. события",
+
         "recurring_intro":       "📅 Повторяющееся бронирование\n\nКаждый *{weekday}* с *{start}* до *{end}*.\n\n*Шаг 1 — Выберите дату НАЧАЛА:*\n_(Сначала выберите месяц)_",
         "recurring_pick_to":     "✅ Дата начала: *{from_date}*\n\n*Шаг 2 — Выберите дату КОНЦА:*\n_(Сначала выберите месяц)_",
         "recurring_pick_from_day": "📅 *{month}* — выберите день НАЧАЛА:",
@@ -330,6 +339,10 @@ T: dict[str, dict[str, str]] = {
         # ── 1 hour reminder ──────────────────────────────────────────────
         "reminder_title":   "⏰ Ваше бронирование начинается через {minutes} минут!",
         "reminder_headsup": "⏰ Клуб занят через {minutes} минут",
+
+        # ── Upcoming events ──────────────────────────────────────────────
+        "events_title": "🎉 Предстоящие события",
+        "events_empty": "🎉 Нет предстоящих событий.",
     },
     # -----------------------------------------------------------------------
     # ARMENIAN
@@ -436,6 +449,8 @@ T: dict[str, dict[str, str]] = {
         "no_permission":         "⛔ Դուք իրավունք չունեք այս հրամանն օգտագործելու։",
         "btn_dismiss":           "👌 Շատ լավ, հասկացա!",
 
+        "btn_events": "🎉 Հատուկ միջոցառումներ",
+
         "recurring_intro":       "📅 *Կրկնվող ամրագրում*\n\nԱմեն *{weekday}* ժամը *{start}*-ից մինչև *{end}*։\n\n*Քայլ 1 — Ընտրեք ՄԵԿՆԱՐԿԻ ամսաթիվը:*\n_(Նախ ընտրեք ամիսը)_",
         "recurring_pick_to":     "✅ Մեկնարկի ամսաթիվ՝ *{from_date}*\n\n*Քայլ 2 — Ընտրեք ԱՎԱՐՏԻ ամսաթիվը:*\n_(Նախ ընտրեք ամիսը)_",
         "recurring_pick_from_day": "📅 *{month}* — ընտրեք ՄԵԿՆԱՐԿԻ օրը:",
@@ -459,6 +474,10 @@ T: dict[str, dict[str, str]] = {
         # ── 1 hour reminder ──────────────────────────────────────────────
         "reminder_title":   "⏰ Ձեր ամրագրումը կսկսի {minutes}-ից։",
         "reminder_headsup": "⏰ Ակումբը զբաղված կլինի {minutes}-ից։",
+
+        # ── Upcoming events ──────────────────────────────────────────────
+        "events_title": "🎉 Առաջիկա հատուկ իրադարձություններ",
+        "events_empty": "🎉 Առաջիկա հատուկ իրադարձություններ չկա.", 
     },
 }
 
@@ -499,6 +518,26 @@ WEEKDAY_NAMES: dict[str, list[str]] = {
     "hy": ["Երկուշաբթի","Երեքշաբթի","Չորեքշաբթի","Հինգշաբթի","Ուրբաթ","Շաբաթ","Կիրակի"],
 }
  
+HELP_TEXTS: dict[str, str] = {
+    "hy": (
+        "📅 Ակումբը ամրագրել — քայլ առ քայլ ընտրել և ամրագրել ժամանակը։\n"
+        "📊 Դիտել ժամանակացույցը — տեսնել ամրագրումները շաբաթվա կամ ամսվա համար։\n"
+        "📌 Իմ ամրագրումները — դիտել, փոփոխել կամ չեղարկել ձեր ամրագրումները։\n"
+        "🟢 Ազատ ժամանակ — ստուգել, թե որ ժամերն են հասանելի։"
+    ),
+    "ru": (
+        "📅 Забронировать клуб — пошагово выбрать и зарезервировать время.\n"
+        "📊 Посмотреть расписание — увидеть бронирования на неделю или месяц.\n"
+        "📌 Мои бронирования — просмотреть, изменить или отменить свои брони.\n"
+        "🟢 Свободное время — проверить, какие часы доступны."
+    ),
+    "en": (
+        "📅 Book club — reserve a time slot step by step.\n"
+        "📊 View schedule — see weekly or monthly bookings.\n"
+        "📌 My bookings — view, edit, or cancel your reservations.\n"
+        "🟢 Free time — check what hours are available."
+    ),
+} 
 DEFAULT_LANG = "en"
 
 # ===========================================================================
