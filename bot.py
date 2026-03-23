@@ -77,7 +77,16 @@ def build_application() -> Application:
             pass
 
     from telegram.ext import MessageHandler as _MH, filters as _f
+
+    # Auto-delete unknown commands (e.g. /something not registered)
+    async def _auto_delete_command(update, context):
+        try:
+            await update.message.delete()
+        except Exception:
+            pass
+
     app.add_handler(_MH(_f.TEXT & ~_f.COMMAND, _auto_delete), group=1)
+    app.add_handler(_MH(_f.COMMAND, _auto_delete_command), group=1)
 
     return app
 
