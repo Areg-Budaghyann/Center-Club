@@ -297,8 +297,24 @@ def get_user_lang(user_id: int):
 
 # ── Special events ────────────────────────────────────────────────────────────
 
+def _ensure_special_events_table() -> None:
+    """Create special_events table if it doesn't exist (migration for existing DBs)."""
+    with _connect() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS special_events (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                title       TEXT    NOT NULL,
+                event_date  TEXT    NOT NULL,
+                event_time  TEXT    NOT NULL,
+                location    TEXT    NOT NULL,
+                created_at  TEXT    DEFAULT (datetime('now'))
+            )
+        """)
+
+
 def create_special_event(title: str, event_date: str, event_time: str, location: str) -> int:
     """Insert a new special event, return its id."""
+    _ensure_special_events_table()
     with _connect() as conn:
         cur = conn.execute(
             "INSERT INTO special_events (title, event_date, event_time, location) VALUES (?,?,?,?)",
@@ -309,6 +325,7 @@ def create_special_event(title: str, event_date: str, event_time: str, location:
 
 def get_all_special_events() -> list[dict]:
     """Return all upcoming special events sorted by date."""
+    _ensure_special_events_table()
     from datetime import date
     today = date.today().isoformat()
     with _connect() as conn:
