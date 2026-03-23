@@ -434,6 +434,7 @@ def register(application) -> None:
         },
         fallbacks=[
             CallbackQueryHandler(edit_cancel,      pattern="^menu$"),
+            CallbackQueryHandler(edit_cancel,      pattern="^events$"),
             CallbackQueryHandler(edit_entry,       pattern=r"^myb_edit:"),
             CallbackQueryHandler(view_booking,     pattern=r"^myb_view:"),
             CallbackQueryHandler(mybookings_entry, pattern="^mybookings$"),

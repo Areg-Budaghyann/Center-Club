@@ -825,6 +825,7 @@ def register(application) -> None:
         fallbacks=[
             CallbackQueryHandler(book_cancel, pattern="^book_cancel$"),
             CallbackQueryHandler(book_cancel, pattern="^menu$"),
+            CallbackQueryHandler(book_cancel, pattern="^events$"),
             CommandHandler("start", _ignore_start_in_flow),
         ],
         per_message=False,
