@@ -457,8 +457,8 @@ T: dict[str, dict[str, str]] = {
 
 
         # ── 1 hour reminder ──────────────────────────────────────────────
-        "reminder_title":   "⏰ Your booking starts in {minutes} minutes!",
-        "reminder_headsup": "⏰ Club booked in {minutes} minutes",
+        "reminder_title":   "⏰ Ձեր ամրագրումը կսկսի {minutes}-ից։",
+        "reminder_headsup": "⏰ Ակումբը զբաղված կլինի {minutes}-ից։",
     },
 }
 

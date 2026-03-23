@@ -295,6 +295,35 @@ def get_user_lang(user_id: int):
     return row["lang"] if row else None
 
 
+# ── Special events ────────────────────────────────────────────────────────────
+
+def create_special_event(title: str, event_date: str, event_time: str, location: str) -> int:
+    """Insert a new special event, return its id."""
+    with _connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO special_events (title, event_date, event_time, location) VALUES (?,?,?,?)",
+            (title, event_date, event_time, location),
+        )
+        return cur.lastrowid
+
+
+def get_all_special_events() -> list[dict]:
+    """Return all upcoming special events sorted by date."""
+    from datetime import date
+    today = date.today().isoformat()
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM special_events WHERE event_date >= ? ORDER BY event_date, event_time",
+            (today,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def delete_special_event(event_id: int) -> None:
+    with _connect() as conn:
+        conn.execute("DELETE FROM special_events WHERE id = ?", (event_id,))
+
+
 def get_all_user_ids() -> list[int]:
     """Return all known user IDs for broadcast notifications."""
     with _connect() as conn:

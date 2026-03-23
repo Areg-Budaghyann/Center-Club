@@ -18,7 +18,7 @@ from telegram.ext import Application, MessageHandler, filters
 
 import database
 from config import BOT_TOKEN
-from handlers import start, booking, schedule, mybookings, recurring
+from handlers import start, booking, schedule, mybookings, recurring, events
 from scheduler.reminders import start_scheduler
 from scheduler.log_bot import log_start, log_error
 
@@ -65,6 +65,7 @@ def build_application() -> Application:
     recurring.register(app)     # Recurring bookings (/recurring command)
     mybookings.register(app)    # ConversationHandler for edit, simple handlers for list/cancel
     schedule.register(app)      # Schedule & free-time
+    events.register(app)        # Special events
     start.register(app)         # /start + menu + help (catch-all last)
 
     # Auto-delete any text message sent outside of a conversation flow
