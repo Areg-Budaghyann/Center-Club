@@ -76,7 +76,6 @@ async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         _db.upsert_user(user.id, username, lang)
     await query.edit_message_text(
         get_text(lang, "start_message"),
-        parse_mode="Markdown",
         reply_markup=_main_menu_keyboard(lang),
     )
 
@@ -87,7 +86,6 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     lang = context.user_data.get("lang", DEFAULT_LANG)
     await query.edit_message_text(
         get_text(lang, "start_message"),
-        parse_mode="Markdown",
         reply_markup=_main_menu_keyboard(lang),
     )
 
