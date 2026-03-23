@@ -126,10 +126,18 @@ def _events_view(lang: str, user_id: int) -> tuple[str, InlineKeyboardMarkup]:
     menu_btn = [[InlineKeyboardButton(get_text(lang, "btn_menu"), callback_data="menu")]]
 
     if not events:
-        return "🎉 No upcoming special events.", InlineKeyboardMarkup(menu_btn)
+        empty_rows = []
+        if is_admin:
+            empty_rows.append([InlineKeyboardButton("➕ Add event", callback_data="ev_add")])
+        empty_rows += menu_btn
+        return get_text(lang, "events_empty"), InlineKeyboardMarkup(empty_rows)
 
-    text = "🎉 Upcoming special events\n"
+    text = get_text(lang, "events_title") + "\n"
     rows = []
+
+    # Admin: Add event button at the top
+    if is_admin:
+        rows.append([InlineKeyboardButton("➕ Add event", callback_data="ev_add")])
 
     for e in events:
         text += f"\n━━━━━━━━━━━━━━━━━━━━━━\n{_event_block(e)}\n"
@@ -379,6 +387,30 @@ async def eve_skip_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 
 # ── Add event flow ────────────────────────────────────────────────────────────
+
+
+async def ev_add_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Admin tapped ➕ Add event button — start add flow."""
+    query = update.callback_query
+    if not _is_admin(update.effective_user.id):
+        await query.answer("⛔ Admin only", show_alert=True)
+        return ConversationHandler.END
+    await query.answer()
+    lang = _lang(context)
+
+    # Clear previous event data but keep lang
+    for key in [k for k in context.user_data if k.startswith("ev_")]:
+        del context.user_data[key]
+
+    # Store msg_id so we can edit in place
+    context.user_data["ev_msg_id"] = query.message.message_id
+
+    await query.edit_message_text(
+        "📅 Step 1 — Choose month:",
+        reply_markup=_kb_month(lang),
+    )
+    return S_MONTH
+
 
 async def addevent_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not _is_admin(update.effective_user.id):
@@ -646,6 +678,9 @@ def register(application: Application) -> None:
     # View events
     application.add_handler(CallbackQueryHandler(events_callback, pattern="^events$"))
 
+    # Add event button (outside conversation — entry point handles it)
+    application.add_handler(CallbackQueryHandler(ev_add_callback, pattern="^ev_add$"))
+
     # Delete flow
     application.add_handler(CallbackQueryHandler(ev_delask,     pattern=r"^ev_delask:\d+$"))
     application.add_handler(CallbackQueryHandler(ev_delconfirm, pattern=r"^ev_delconfirm:\d+$"))
@@ -685,7 +720,10 @@ def register(application: Application) -> None:
 
     # Add event conversation
     add_conv = ConversationHandler(
-        entry_points=[CommandHandler("addevent", addevent_start)],
+        entry_points=[
+            CommandHandler("addevent", addevent_start),
+            CallbackQueryHandler(ev_add_callback, pattern="^ev_add$"),
+        ],
         states={
             S_MONTH:     [CallbackQueryHandler(ev_pick_month,    pattern=r"^ev_month:\d+:\d+$"),
                           CallbackQueryHandler(ev_cancel,        pattern=f"^{CANCEL_CB}$")],
