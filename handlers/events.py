@@ -410,6 +410,15 @@ async def ev_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
     logger.info("Special event created id=%d", event_id)
     await query.edit_message_text("🎉 Event saved!")
+    # Auto-delete the confirmation message after 3 seconds
+    import asyncio
+    async def _del():
+        await asyncio.sleep(3)
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+    asyncio.ensure_future(_del())
 
     lang = context.user_data.get("lang", "en")
     context.user_data.clear()
@@ -419,15 +428,29 @@ async def ev_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 # Cancel from anywhere
 async def ev_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    import asyncio
+    async def _del_msg(bot, chat_id, msg_id):
+        await asyncio.sleep(3)
+        try:
+            await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+        except Exception:
+            pass
+
     if update.callback_query:
         await update.callback_query.answer()
         await update.callback_query.edit_message_text("❌ Event creation cancelled.")
+        asyncio.ensure_future(_del_msg(
+            update.callback_query.get_bot(),
+            update.callback_query.message.chat_id,
+            update.callback_query.message.message_id,
+        ))
     else:
         try:
             await update.message.delete()
         except Exception:
             pass
-        await update.effective_chat.send_message("❌ Event creation cancelled.")
+        msg = await update.effective_chat.send_message("❌ Event creation cancelled.")
+        asyncio.ensure_future(_del_msg(update.get_bot(), msg.chat_id, msg.message_id))
     lang = context.user_data.get("lang", "en")
     context.user_data.clear()
     context.user_data["lang"] = lang
