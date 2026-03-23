@@ -678,9 +678,6 @@ def register(application: Application) -> None:
     # View events
     application.add_handler(CallbackQueryHandler(events_callback, pattern="^events$"))
 
-    # Add event button (outside conversation — entry point handles it)
-    application.add_handler(CallbackQueryHandler(ev_add_callback, pattern="^ev_add$"))
-
     # Delete flow
     application.add_handler(CallbackQueryHandler(ev_delask,     pattern=r"^ev_delask:\d+$"))
     application.add_handler(CallbackQueryHandler(ev_delconfirm, pattern=r"^ev_delconfirm:\d+$"))
@@ -713,8 +710,11 @@ def register(application: Application) -> None:
                 CallbackQueryHandler(eve_back_menu, pattern="^eve_back_menu$"),
             ],
         },
-        fallbacks=[CallbackQueryHandler(events_callback, pattern="^events$")],
+        fallbacks=[
+            CallbackQueryHandler(events_callback, pattern="^events$"),
+        ],
         per_message=False,
+        allow_reentry=True,
     )
     application.add_handler(edit_conv)
 
@@ -750,6 +750,7 @@ def register(application: Application) -> None:
         fallbacks=[CommandHandler("cancel", ev_cancel),
                    CallbackQueryHandler(ev_cancel, pattern=f"^{CANCEL_CB}$")],
         per_message=False,
+        allow_reentry=True,
     )
     application.add_handler(add_conv)
     application.add_handler(CommandHandler("delevents", delevents_start))
