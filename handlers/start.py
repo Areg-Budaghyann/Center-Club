@@ -10,38 +10,15 @@ Flow for returning:    /start -> main menu directly
 from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
-from translations import get_text, DEFAULT_LANG
+from translations import get_text, DEFAULT_LANG, HELP_TEXTS
 
 MENU_CALLBACK = "menu"
-
-# ── Help texts per language — exact text, no modifications ───────────────────
-HELP_TEXTS = {
-    "hy": (
-        "📅 Ակումբը ամրագրել — քայլ առ քայլ ընտրել և ամրագրել ժամանակը։\n"
-        "📊 Դիտել ժամանակացույցը — տեսնել ամրագրումները շաբաթվա կամ ամսվա համար։\n"
-        "📌 Իմ ամրագրումները — դիտել, փոփոխել կամ չեղարկել ձեր ամրագրումները։\n"
-        "🟢 Ազատ ժամանակ — ստուգել, թե որ ժամերն են հասանելի։"
-),
-    "ru": (
-        "📅 Забронировать клуб — пошагово выбрать и зарезервировать время.\n"
-        "📊 Посмотреть расписание — увидеть бронирования на неделю или месяц.\n"
-        "📌 Мои бронирования — просмотреть, изменить или отменить свои брони.\n"
-        "🟢 Свободное время — проверить, какие часы доступны."
-    ),
-    "en": (
-        "📅 Book club — reserve a time slot step by step.\n"
-        "📊 View schedule — see weekly or monthly bookings.\n"
-        "📌 My bookings — view, edit, or cancel your reservations.\n"
-        "🟢 Free time — check what hours are available."
-    ),
-}
-
 
 def _kb_language() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🇬🇧  English",  callback_data="lang:en")],
         [InlineKeyboardButton("🇷🇺  Русский",  callback_data="lang:ru")],
-        [InlineKeyboardButton("🇦🇲  Հայերեն",  callback_data="lang:hy")],
+        [InlineKeyboardButton("🇦🇲  Հայerен",  callback_data="lang:hy")],
     ])
 
 
@@ -52,7 +29,7 @@ def _main_menu_keyboard(lang: str = DEFAULT_LANG) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(t("btn_view_schedule"), callback_data="schedule")],
         [InlineKeyboardButton(t("btn_my_bookings"),   callback_data="mybookings")],
         [InlineKeyboardButton(t("btn_free_time"),     callback_data="freetime")],
-        [InlineKeyboardButton(t("btn_events"),        callback_data="events")],
+        [InlineKeyboardButton(t("btn_events") if not t("btn_events").startswith("[missing") else "🎉 Special events", callback_data="events")],
         [InlineKeyboardButton(t("btn_help"),          callback_data="help")],
         [InlineKeyboardButton(t("btn_language"),      callback_data="choose_lang")],
     ])

@@ -24,6 +24,23 @@ import database as db
 from config import ADMIN_IDS
 from translations import get_text, DEFAULT_LANG
 
+# Fallback texts in case translation keys not yet added to translations.py
+_EVENTS_TEXTS = {
+    "en": {"btn_events": "🎉 Special events",  "events_title": "Upcoming special events",  "events_empty": "No upcoming special events."},
+    "ru": {"btn_events": "🎉 Спец. события",    "events_title": "Предстоящие события",        "events_empty": "Нет предстоящих событий."},
+    "hy": {"btn_events": "🎉 Հատук иradarts", "events_title": "Аджика hатук ирадарцутюннер", "events_empty": "Аджика hатук ирадарцутюннер чка."},
+}
+
+def _et(lang: str, key: str) -> str:
+    """Get events text with fallback."""
+    try:
+        result = get_text(lang, key)
+        if result.startswith("[missing"):
+            raise ValueError
+        return result
+    except Exception:
+        return _EVENTS_TEXTS.get(lang, _EVENTS_TEXTS["en"]).get(key, key)
+
 logger = logging.getLogger(__name__)
 
 # Conversation states
@@ -43,13 +60,13 @@ def _events_text(lang: str) -> tuple[str, InlineKeyboardMarkup]:
     events = db.get_all_special_events()
 
     if not events:
-        text = "🎉 " + get_text(lang, "events_empty")
+        text = "🎉 " + _et(lang, "events_empty")
         kb   = InlineKeyboardMarkup([[
             InlineKeyboardButton(get_text(lang, "btn_menu"), callback_data="menu")
         ]])
         return text, kb
 
-    lines = ["🎉 " + get_text(lang, "events_title") + "\n"]
+    lines = ["🎉 " + _et(lang, "events_title") + "\n"]
     for e in events:
         lines.append(f"━━━━━━━━━━━━━━━━━━━━━━")
         lines.append(f"📌 {e['title']}")

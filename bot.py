@@ -61,11 +61,11 @@ def build_application() -> Application:
     app.add_handler(TypeHandler(TGUpdate, _track_user), group=-1)
 
     # Register handlers (order matters — more specific first)
+    events.register(app)        # Special events (registered first — simple callbacks)
     booking.register(app)       # ConversationHandler for booking flow
     recurring.register(app)     # Recurring bookings (/recurring command)
     mybookings.register(app)    # ConversationHandler for edit, simple handlers for list/cancel
     schedule.register(app)      # Schedule & free-time
-    events.register(app)        # Special events
     start.register(app)         # /start + menu + help (catch-all last)
 
     # Auto-delete any text message sent outside of a conversation flow
