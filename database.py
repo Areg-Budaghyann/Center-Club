@@ -307,18 +307,24 @@ def _ensure_special_events_table() -> None:
                 event_date  TEXT    NOT NULL,
                 event_time  TEXT    NOT NULL,
                 location    TEXT    NOT NULL,
+                description TEXT    DEFAULT '',
                 created_at  TEXT    DEFAULT (datetime('now'))
             )
         """)
+        # Migration: add description column if missing
+        try:
+            conn.execute("ALTER TABLE special_events ADD COLUMN description TEXT DEFAULT ''")
+        except Exception:
+            pass
 
 
-def create_special_event(title: str, event_date: str, event_time: str, location: str) -> int:
+def create_special_event(title: str, event_date: str, event_time: str, location: str, description: str = "") -> int:
     """Insert a new special event, return its id."""
     _ensure_special_events_table()
     with _connect() as conn:
         cur = conn.execute(
-            "INSERT INTO special_events (title, event_date, event_time, location) VALUES (?,?,?,?)",
-            (title, event_date, event_time, location),
+            "INSERT INTO special_events (title, event_date, event_time, location, description) VALUES (?,?,?,?,?)",
+            (title, event_date, event_time, location, description),
         )
         return cur.lastrowid
 
