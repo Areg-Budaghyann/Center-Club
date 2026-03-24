@@ -704,24 +704,23 @@ async def ev_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def ev_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = _lang(context)
+    context.user_data.clear()
+    context.user_data["lang"] = lang
+
     if update.callback_query:
         await update.callback_query.answer()
-        await update.callback_query.edit_message_text(get_text(_lang(context), "ev_cancelled"))
-        asyncio.ensure_future(_auto_del(
-            update.callback_query.get_bot(),
-            update.callback_query.message.chat_id,
-            update.callback_query.message.message_id,
-        ))
+        # Restore events list — never delete the message (it may be the menu)
+        try:
+            text, kb = _events_view(lang, update.effective_user.id)
+            await update.callback_query.edit_message_text(text, reply_markup=kb)
+        except Exception:
+            pass
     else:
         try:
             await update.message.delete()
         except Exception:
             pass
-        msg = await update.effective_chat.send_message(get_text(_lang(context), "ev_cancelled"))
-        asyncio.ensure_future(_auto_del(update.get_bot(), msg.chat_id, msg.message_id))
-    lang = context.user_data.get("lang", "en")
-    context.user_data.clear()
-    context.user_data["lang"] = lang
     return ConversationHandler.END
 
 
