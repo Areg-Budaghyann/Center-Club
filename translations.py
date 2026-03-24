@@ -208,7 +208,7 @@ T: dict[str, dict[str, str]] = {
         # ── Upcoming events ──────────────────────────────────────────────
         "events_title": "🎉 Upcoming special events",
         "events_empty": "🎉 No upcoming special events.",
-        "update_notification": "🔔 Update\n\nA new section “Special Events” has been added to the bot 📅\n\nIn this section, you can view special events.\nOnly admins can create, edit, or delete events.\n\nThank you for using the bot 🙌"
+        "update_notification": "🔔 Update\n\nA new section “Special Events” has been added to the bot 📅\n\nIn this section, you can view special events.\nOnly admins can create, edit, or delete events.\n\nThank you for using the bot 🙌",
 
         "ev_add_btn":      "➕ Add event",
         "ev_edit_btn":     "✏️ Edit event",
