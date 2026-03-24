@@ -198,6 +198,7 @@ async def ev_delconfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def ev_edit_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Show list of events to choose one for editing."""
     query = update.callback_query
+    lang  = _lang(context)
     if not _is_admin(update.effective_user.id):
         await query.answer("⛔ Admin only", show_alert=True)
         return ConversationHandler.END
@@ -224,6 +225,7 @@ async def ev_edit_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 async def ev_del_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Show list of events to choose one for deletion."""
     query = update.callback_query
+    lang  = _lang(context)
     if not _is_admin(update.effective_user.id):
         await query.answer("⛔ Admin only", show_alert=True)
         return ConversationHandler.END
