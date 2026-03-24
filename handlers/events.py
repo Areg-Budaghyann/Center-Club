@@ -135,17 +135,14 @@ def _events_view(lang: str, user_id: int) -> tuple[str, InlineKeyboardMarkup]:
     text = get_text(lang, "events_title") + "\n"
     rows = []
 
-    # Admin: Add event button at the top
-    if is_admin:
-        rows.append([InlineKeyboardButton("➕ Add event", callback_data="ev_add")])
-
     for e in events:
         text += f"\n━━━━━━━━━━━━━━━━━━━━━━\n{_event_block(e)}\n"
-        if is_admin:
-            rows.append([
-                InlineKeyboardButton("✏️ Edit",   callback_data=f"ev_edit:{e['id']}"),
-                InlineKeyboardButton("🗑 Delete", callback_data=f"ev_delask:{e['id']}"),
-            ])
+
+    # Admin: management buttons at the bottom
+    if is_admin:
+        rows.append([InlineKeyboardButton("➕ Add event",    callback_data="ev_add")])
+        rows.append([InlineKeyboardButton("✏️ Edit event",  callback_data="ev_edit_list")])
+        rows.append([InlineKeyboardButton("🗑 Delete event", callback_data="ev_del_list")])
 
     rows += menu_btn
     return text, InlineKeyboardMarkup(rows)
@@ -196,6 +193,59 @@ async def ev_delconfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 # ── Edit event ────────────────────────────────────────────────────────────────
+
+
+async def ev_edit_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Show list of events to choose one for editing."""
+    query = update.callback_query
+    if not _is_admin(update.effective_user.id):
+        await query.answer("⛔ Admin only", show_alert=True)
+        return ConversationHandler.END
+    await query.answer()
+
+    events = db.get_all_special_events()
+    if not events:
+        await query.answer("No events to edit", show_alert=True)
+        return ConversationHandler.END
+
+    rows = [[InlineKeyboardButton(
+        f"🎉 {e['title']} ({e['event_date']})",
+        callback_data=f"ev_edit:{e['id']}"
+    )] for e in events]
+    rows.append([InlineKeyboardButton("← Back", callback_data="events")])
+
+    await query.edit_message_text(
+        "✏️ Choose event to edit:",
+        reply_markup=InlineKeyboardMarkup(rows),
+    )
+    return SE_MENU
+
+
+async def ev_del_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Show list of events to choose one for deletion."""
+    query = update.callback_query
+    if not _is_admin(update.effective_user.id):
+        await query.answer("⛔ Admin only", show_alert=True)
+        return ConversationHandler.END
+    await query.answer()
+
+    events = db.get_all_special_events()
+    if not events:
+        await query.answer("No events to delete", show_alert=True)
+        return ConversationHandler.END
+
+    rows = [[InlineKeyboardButton(
+        f"🎉 {e['title']} ({e['event_date']})",
+        callback_data=f"ev_delask:{e['id']}"
+    )] for e in events]
+    rows.append([InlineKeyboardButton("← Back", callback_data="events")])
+
+    await query.edit_message_text(
+        "🗑 Choose event to delete:",
+        reply_markup=InlineKeyboardMarkup(rows),
+    )
+    return ConversationHandler.END
+
 
 async def ev_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
@@ -681,13 +731,18 @@ def register(application: Application) -> None:
     # Delete flow
     application.add_handler(CallbackQueryHandler(ev_delask,     pattern=r"^ev_delask:\d+$"))
     application.add_handler(CallbackQueryHandler(ev_delconfirm, pattern=r"^ev_delconfirm:\d+$"))
+    application.add_handler(CallbackQueryHandler(ev_del_list,   pattern="^ev_del_list$"))
 
     # Edit conversation
     edit_conv = ConversationHandler(
-        entry_points=[CallbackQueryHandler(ev_edit, pattern=r"^ev_edit:\d+$")],
+        entry_points=[
+            CallbackQueryHandler(ev_edit,      pattern=r"^ev_edit:\d+$"),
+            CallbackQueryHandler(ev_edit_list, pattern="^ev_edit_list$"),
+        ],
         states={
             SE_MENU: [
-                CallbackQueryHandler(eve_field,    pattern=r"^eve_field:\w+$"),
+                CallbackQueryHandler(eve_field,       pattern=r"^eve_field:\w+$"),
+                CallbackQueryHandler(ev_edit,         pattern=r"^ev_edit:\d+$"),
                 CallbackQueryHandler(events_callback, pattern="^events$"),
             ],
             SE_DATE_MONTH: [
