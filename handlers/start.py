@@ -45,9 +45,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Delete any pending notification/reminder messages for this user
     user_id = update.effective_user.id if update.effective_user else None
     if user_id:
+        menu_msg_id = context.user_data.get("menu_msg_id")  # protect menu
         # From booking notifications (bot_data)
         pending = context.bot_data.get("pending_notifs", {})
         for msg_id in pending.pop(user_id, []):
+            if msg_id == menu_msg_id:
+                continue
             try:
                 await context.bot.delete_message(chat_id=user_id, message_id=msg_id)
             except Exception:
@@ -56,6 +59,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         try:
             from scheduler.reminders import PENDING_NOTIFS
             for msg_id in PENDING_NOTIFS.pop(user_id, []):
+                if msg_id == menu_msg_id:
+                    continue
                 try:
                     await context.bot.delete_message(chat_id=user_id, message_id=msg_id)
                 except Exception:
@@ -77,11 +82,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=_kb_language(),
         )
     else:
-        await context.bot.send_message(
+        menu_msg = await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text=get_text(lang, "start_message"),
             reply_markup=_main_menu_keyboard(lang),
         )
+        # Store menu message ID so other handlers never accidentally delete it
+        context.user_data["menu_msg_id"] = menu_msg.message_id
 
 
 async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -95,20 +102,22 @@ async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if user:
         username = user.username or user.first_name or str(user.id)
         _db.upsert_user(user.id, username, lang)
-    await query.edit_message_text(
+    msg = await query.edit_message_text(
         get_text(lang, "start_message"),
         reply_markup=_main_menu_keyboard(lang),
     )
+    context.user_data["menu_msg_id"] = msg.message_id
 
 
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
     lang = context.user_data.get("lang", DEFAULT_LANG)
-    await query.edit_message_text(
+    msg = await query.edit_message_text(
         get_text(lang, "start_message"),
         reply_markup=_main_menu_keyboard(lang),
     )
+    context.user_data["menu_msg_id"] = msg.message_id
 
 
 async def choose_lang_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

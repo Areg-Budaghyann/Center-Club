@@ -84,6 +84,34 @@ async def _auto_del_msg(bot, chat_id: int, msg_id: int, delay: int = 300) -> Non
     except Exception:
         pass
 
+
+async def _clear_notifications(bot, user_id: int, context) -> None:
+    """Delete all pending notification messages for a user. Never touches menu."""
+    menu_msg_id = context.user_data.get("menu_msg_id")
+
+    # From bot_data (booking notifications)
+    pending = context.bot_data.get("pending_notifs", {})
+    for msg_id in pending.pop(user_id, []):
+        if msg_id == menu_msg_id:
+            continue  # Never delete main menu
+        try:
+            await bot.delete_message(chat_id=user_id, message_id=msg_id)
+        except Exception:
+            pass
+
+    # From reminders module
+    try:
+        from scheduler.reminders import PENDING_NOTIFS
+        for msg_id in PENDING_NOTIFS.pop(user_id, []):
+            if msg_id == menu_msg_id:
+                continue
+            try:
+                await bot.delete_message(chat_id=user_id, message_id=msg_id)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
 def _date_in_event_range(date_str: str, event_date: str) -> bool:
     """Check if a date falls within an event's date range."""
     try:
@@ -282,9 +310,16 @@ async def book_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Entry point — preserves lang, clears other state."""
     query = update.callback_query
     await query.answer()
-    lang = _lang(context)
+    lang        = _lang(context)
+    menu_msg_id = context.user_data.get("menu_msg_id")  # preserve before clear
+
+    # Clear old notifications silently
+    await _clear_notifications(context.bot, update.effective_user.id, context)
+
     context.user_data.clear()
     context.user_data["lang"] = lang
+    if menu_msg_id:
+        context.user_data["menu_msg_id"] = menu_msg_id  # restore after clear
 
     await query.edit_message_text(
         get_text(lang, "choose_month"),

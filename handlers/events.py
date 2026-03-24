@@ -665,6 +665,11 @@ async def ev_enter_location(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def ev_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
+    lang     = _lang(context)   # ← must be before any get_text call
+    user_id  = update.effective_user.id
+    chat_id  = query.message.chat_id
+    msg_id   = query.message.message_id
+
     event_id = db.create_special_event(
         title       = context.user_data["ev_title"],
         event_date  = context.user_data["ev_date"],
@@ -673,22 +678,28 @@ async def ev_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         description = context.user_data.get("ev_desc", ""),
     )
     logger.info("Special event created id=%d", event_id)
-    # Show saved message briefly then delete it and show events list
+
+    # Clear state before any async work
+    context.user_data.clear()
+    context.user_data["lang"] = lang
+
+    # Edit message to show success, then after 2s replace with events list
     await query.edit_message_text(get_text(lang, "ev_saved"))
-    asyncio.ensure_future(_auto_del(query.get_bot(), query.message.chat_id, query.message.message_id, delay=2))
-    # After 2 seconds send the events list as a fresh message
-    async def _show_events_after():
+
+    async def _finish():
         import asyncio as _a
         await _a.sleep(2)
         try:
-            text, kb = _events_view(lang, query.from_user.id)
-            await query.get_bot().send_message(chat_id=query.message.chat_id, text=text, reply_markup=kb)
+            await query.get_bot().delete_message(chat_id=chat_id, message_id=msg_id)
         except Exception:
             pass
-    asyncio.ensure_future(_show_events_after())
-    lang = context.user_data.get("lang", "en")
-    context.user_data.clear()
-    context.user_data["lang"] = lang
+        try:
+            text, kb = _events_view(lang, user_id)
+            await query.get_bot().send_message(chat_id=chat_id, text=text, reply_markup=kb)
+        except Exception:
+            pass
+
+    asyncio.ensure_future(_finish())
     return ConversationHandler.END
 
 
