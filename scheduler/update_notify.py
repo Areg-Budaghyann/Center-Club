@@ -51,7 +51,7 @@ UPDATE_TEXTS = {
 DISMISS_TEXTS = {
     "en": "👌 Got it",
     "ru": "👌 Окей, понятно",
-    "hy": "👌 Հасkацал е",
+    "hy": "👌 Շատ լավ, հասկացա",
 }
 
 
