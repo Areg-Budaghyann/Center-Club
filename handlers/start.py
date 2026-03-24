@@ -45,7 +45,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Delete any pending notification/reminder messages for this user
     user_id = update.effective_user.id if update.effective_user else None
     if user_id:
-        menu_msg_id = context.user_data.get("menu_msg_id")  # protect menu
+        menu_msg_id = context.bot_data.get("menu_msgs", {}).get(user_id)  # protect menu
         # From booking notifications (bot_data)
         pending = context.bot_data.get("pending_notifs", {})
         for msg_id in pending.pop(user_id, []):
@@ -88,7 +88,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=_main_menu_keyboard(lang),
         )
         # Store menu message ID so other handlers never accidentally delete it
-        context.user_data["menu_msg_id"] = menu_msg.message_id
+        # Store in bot_data keyed by user_id — survives ConversationHandler.END
+        context.bot_data.setdefault("menu_msgs", {})[update.effective_user.id] = menu_msg.message_id
 
 
 async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -106,7 +107,8 @@ async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         get_text(lang, "start_message"),
         reply_markup=_main_menu_keyboard(lang),
     )
-    context.user_data["menu_msg_id"] = msg.message_id
+    if update.effective_user:
+        context.bot_data.setdefault("menu_msgs", {})[update.effective_user.id] = msg.message_id
 
 
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -117,7 +119,8 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         get_text(lang, "start_message"),
         reply_markup=_main_menu_keyboard(lang),
     )
-    context.user_data["menu_msg_id"] = msg.message_id
+    if update.effective_user:
+        context.bot_data.setdefault("menu_msgs", {})[update.effective_user.id] = msg.message_id
 
 
 async def choose_lang_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

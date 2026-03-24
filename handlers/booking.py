@@ -87,7 +87,7 @@ async def _auto_del_msg(bot, chat_id: int, msg_id: int, delay: int = 300) -> Non
 
 async def _clear_notifications(bot, user_id: int, context) -> None:
     """Delete all pending notification messages for a user. Never touches menu."""
-    menu_msg_id = context.user_data.get("menu_msg_id")
+    menu_msg_id = context.bot_data.get("menu_msgs", {}).get(user_id)
 
     # From bot_data (booking notifications)
     pending = context.bot_data.get("pending_notifs", {})
@@ -311,15 +311,14 @@ async def book_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
     lang        = _lang(context)
-    menu_msg_id = context.user_data.get("menu_msg_id")  # preserve before clear
+    menu_msg_id = context.bot_data.get("menu_msgs", {}).get(update.effective_user.id)  # from bot_data
 
     # Clear old notifications silently
     await _clear_notifications(context.bot, update.effective_user.id, context)
 
     context.user_data.clear()
     context.user_data["lang"] = lang
-    if menu_msg_id:
-        context.user_data["menu_msg_id"] = menu_msg_id  # restore after clear
+    # menu_msg_id lives in bot_data, not user_data — no need to restore
 
     await query.edit_message_text(
         get_text(lang, "choose_month"),
