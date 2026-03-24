@@ -42,6 +42,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception:
         pass
 
+    # Delete any pending notification/reminder messages for this user
+    user_id = update.effective_user.id if update.effective_user else None
+    if user_id:
+        # From booking notifications (bot_data)
+        pending = context.bot_data.get("pending_notifs", {})
+        for msg_id in pending.pop(user_id, []):
+            try:
+                await context.bot.delete_message(chat_id=user_id, message_id=msg_id)
+            except Exception:
+                pass
+        # From reminders (module-level dict)
+        try:
+            from scheduler.reminders import PENDING_NOTIFS
+            for msg_id in PENDING_NOTIFS.pop(user_id, []):
+                try:
+                    await context.bot.delete_message(chat_id=user_id, message_id=msg_id)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
     lang = context.user_data.get("lang")
     # Restore lang from DB if user_data was cleared (e.g. after bot restart)
     if not lang and update.effective_user:

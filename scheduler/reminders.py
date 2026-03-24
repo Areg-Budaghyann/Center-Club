@@ -23,6 +23,10 @@ from translations import get_text, WEEKDAY_NAMES, MONTH_SHORT
 
 logger = logging.getLogger(__name__)
 
+# Module-level dict to track pending notification message IDs per user
+# {user_id: [msg_id, msg_id, ...]}
+PENDING_NOTIFS: dict[int, list[int]] = {}
+
 YEREVAN = ZoneInfo("Asia/Yerevan")
 
 
@@ -133,6 +137,7 @@ async def _send_reminders(bot: Bot) -> None:
                 )
                 # Auto-delete after 15 minutes
                 asyncio.ensure_future(_auto_delete(bot, uid, sent.message_id, 5 * 60))
+                PENDING_NOTIFS.setdefault(uid, []).append(sent.message_id)
             except TelegramError as exc:
                 logger.warning("Heads-up failed user_id=%d: %s", uid, exc)
 

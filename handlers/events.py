@@ -128,7 +128,7 @@ def _events_view(lang: str, user_id: int) -> tuple[str, InlineKeyboardMarkup]:
     if not events:
         empty_rows = []
         if is_admin:
-            empty_rows.append([InlineKeyboardButton("➕ Add event", callback_data="ev_add")])
+            empty_rows.append([InlineKeyboardButton(get_text(lang, "ev_add_btn"), callback_data="ev_add")])
         empty_rows += menu_btn
         return get_text(lang, "events_empty"), InlineKeyboardMarkup(empty_rows)
 
@@ -140,9 +140,9 @@ def _events_view(lang: str, user_id: int) -> tuple[str, InlineKeyboardMarkup]:
 
     # Admin: management buttons at the bottom
     if is_admin:
-        rows.append([InlineKeyboardButton("➕ Add event",    callback_data="ev_add")])
-        rows.append([InlineKeyboardButton("✏️ Edit event",  callback_data="ev_edit_list")])
-        rows.append([InlineKeyboardButton("🗑 Delete event", callback_data="ev_del_list")])
+        rows.append([InlineKeyboardButton(get_text(lang, "ev_add_btn"), callback_data="ev_add")])
+        rows.append([InlineKeyboardButton(get_text(lang, "ev_edit_btn"), callback_data="ev_edit_list")])
+        rows.append([InlineKeyboardButton(get_text(lang, "ev_del_btn"), callback_data="ev_del_list")])
 
     rows += menu_btn
     return text, InlineKeyboardMarkup(rows)
@@ -173,7 +173,7 @@ async def ev_delask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         InlineKeyboardButton("❌ No",          callback_data="events"),
     ]])
     await query.edit_message_text(
-        f"🗑 Delete this event?\n\n{_event_block(ev)}",
+        fget_text(lang, "ev_confirm_del") + "\n\n" + _event_block(ev),
         reply_markup=kb,
     )
 
@@ -215,7 +215,7 @@ async def ev_edit_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     rows.append([InlineKeyboardButton("← Back", callback_data="events")])
 
     await query.edit_message_text(
-        "✏️ Choose event to edit:",
+        get_text(lang, "ev_choose_edit"),
         reply_markup=InlineKeyboardMarkup(rows),
     )
     return SE_MENU
@@ -241,7 +241,7 @@ async def ev_del_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     rows.append([InlineKeyboardButton("← Back", callback_data="events")])
 
     await query.edit_message_text(
-        "🗑 Choose event to delete:",
+        get_text(lang, "ev_choose_del"),
         reply_markup=InlineKeyboardMarkup(rows),
     )
     return ConversationHandler.END
@@ -265,14 +265,14 @@ async def ev_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["ev_edit_data"] = dict(ev)
 
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📅 Date",        callback_data="eve_field:date")],
-        [InlineKeyboardButton("📌 Title",       callback_data="eve_field:title")],
-        [InlineKeyboardButton("📍 Location",    callback_data="eve_field:location")],
-        [InlineKeyboardButton("📝 Description", callback_data="eve_field:desc")],
+        [InlineKeyboardButton(get_text(lang, "ev_field_date"), callback_data="eve_field:date")],
+        [InlineKeyboardButton(get_text(lang, "ev_field_title"), callback_data="eve_field:title")],
+        [InlineKeyboardButton(get_text(lang, "ev_field_loc"), callback_data="eve_field:location")],
+        [InlineKeyboardButton(get_text(lang, "ev_field_desc"), callback_data="eve_field:desc")],
         [InlineKeyboardButton("← Back",         callback_data="events")],
     ])
     await query.edit_message_text(
-        f"✏️ Edit event:\n\n{_event_block(ev)}\n\nWhat would you like to change?",
+        get_text(lang, "ev_edit_menu") + "\n\n" + _event_block(ev),
         reply_markup=kb,
     )
     return SE_MENU
@@ -309,14 +309,14 @@ async def eve_back_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     await query.answer()
     ev = context.user_data.get("ev_edit_data", {})
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📅 Date",        callback_data="eve_field:date")],
-        [InlineKeyboardButton("📌 Title",       callback_data="eve_field:title")],
-        [InlineKeyboardButton("📍 Location",    callback_data="eve_field:location")],
-        [InlineKeyboardButton("📝 Description", callback_data="eve_field:desc")],
+        [InlineKeyboardButton(get_text(lang, "ev_field_date"), callback_data="eve_field:date")],
+        [InlineKeyboardButton(get_text(lang, "ev_field_title"), callback_data="eve_field:title")],
+        [InlineKeyboardButton(get_text(lang, "ev_field_loc"), callback_data="eve_field:location")],
+        [InlineKeyboardButton(get_text(lang, "ev_field_desc"), callback_data="eve_field:desc")],
         [InlineKeyboardButton("← Back",         callback_data="events")],
     ])
     await query.edit_message_text(
-        f"✏️ Edit event:\n\n{_event_block(ev)}\n\nWhat would you like to change?",
+        get_text(lang, "ev_edit_menu") + "\n\n" + _event_block(ev),
         reply_markup=kb,
     )
     return SE_MENU
@@ -673,8 +673,19 @@ async def ev_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         description = context.user_data.get("ev_desc", ""),
     )
     logger.info("Special event created id=%d", event_id)
-    await query.edit_message_text("🎉 Event saved!")
-    asyncio.ensure_future(_auto_del(query.get_bot(), query.message.chat_id, query.message.message_id))
+    # Show saved message briefly then delete it and show events list
+    await query.edit_message_text(get_text(lang, "ev_saved"))
+    asyncio.ensure_future(_auto_del(query.get_bot(), query.message.chat_id, query.message.message_id, delay=2))
+    # After 2 seconds send the events list as a fresh message
+    async def _show_events_after():
+        import asyncio as _a
+        await _a.sleep(2)
+        try:
+            text, kb = _events_view(lang, query.from_user.id)
+            await query.get_bot().send_message(chat_id=query.message.chat_id, text=text, reply_markup=kb)
+        except Exception:
+            pass
+    asyncio.ensure_future(_show_events_after())
     lang = context.user_data.get("lang", "en")
     context.user_data.clear()
     context.user_data["lang"] = lang
@@ -684,7 +695,7 @@ async def ev_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def ev_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.callback_query:
         await update.callback_query.answer()
-        await update.callback_query.edit_message_text("❌ Event creation cancelled.")
+        await update.callback_query.edit_message_text(get_text(_lang(context), "ev_cancelled"))
         asyncio.ensure_future(_auto_del(
             update.callback_query.get_bot(),
             update.callback_query.message.chat_id,
@@ -695,7 +706,7 @@ async def ev_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             await update.message.delete()
         except Exception:
             pass
-        msg = await update.effective_chat.send_message("❌ Event creation cancelled.")
+        msg = await update.effective_chat.send_message(get_text(_lang(context), "ev_cancelled"))
         asyncio.ensure_future(_auto_del(update.get_bot(), msg.chat_id, msg.message_id))
     lang = context.user_data.get("lang", "en")
     context.user_data.clear()
