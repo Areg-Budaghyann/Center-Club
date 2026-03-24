@@ -753,6 +753,7 @@ def register(application: Application) -> None:
     application.add_handler(CallbackQueryHandler(ev_delask,     pattern=r"^ev_delask:\d+$"))
     application.add_handler(CallbackQueryHandler(ev_delconfirm, pattern=r"^ev_delconfirm:\d+$"))
     application.add_handler(CallbackQueryHandler(ev_del_list,   pattern="^ev_del_list$"))
+    application.add_handler(CallbackQueryHandler(ev_edit_list, pattern="^ev_edit_list$"))
 
     # Edit conversation
     edit_conv = ConversationHandler(
@@ -823,8 +824,14 @@ def register(application: Application) -> None:
             S_CONFIRM:   [CallbackQueryHandler(ev_save,           pattern="^ev_save$"),
                           CallbackQueryHandler(ev_cancel,         pattern=f"^{CANCEL_CB}$")],
         },
-        fallbacks=[CommandHandler("cancel", ev_cancel),
-                   CallbackQueryHandler(ev_cancel, pattern=f"^{CANCEL_CB}$")],
+        fallbacks=[
+            CommandHandler("cancel", ev_cancel),
+            CallbackQueryHandler(ev_cancel,    pattern=f"^{CANCEL_CB}$"),
+            CallbackQueryHandler(ev_edit_list, pattern="^ev_edit_list$"),
+            CallbackQueryHandler(ev_del_list,  pattern="^ev_del_list$"),
+            CallbackQueryHandler(ev_delask,    pattern=r"^ev_delask:\d+$"),
+            CallbackQueryHandler(events_callback, pattern="^events$"),
+        ],
         per_message=False,
         allow_reentry=True,
     )
