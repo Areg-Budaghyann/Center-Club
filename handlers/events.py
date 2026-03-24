@@ -173,7 +173,7 @@ async def ev_delask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         InlineKeyboardButton("❌ No",          callback_data="events"),
     ]])
     await query.edit_message_text(
-        fget_text(lang, "ev_confirm_del") + "\n\n" + _event_block(ev),
+        get_text(lang, "ev_confirm_del") + "\n\n" + _event_block(ev),
         reply_markup=kb,
     )
 
