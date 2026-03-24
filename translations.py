@@ -208,7 +208,7 @@ T: dict[str, dict[str, str]] = {
         # ── Upcoming events ──────────────────────────────────────────────
         "events_title": "🎉 Upcoming special events",
         "events_empty": "🎉 No upcoming special events.",
-        "update_notification": "🔔 Update\n\nA new section “Special Events” has been added to the bot 📅\n\nIn this section, you can view special events.\nOnly admins can create, edit, or delete events.\n\nThank you for using the bot 🙌"
+        "update_notification": "🔔 Update\n\nA new section “Special Events” has been added to the bot 📅\n\nIn this section, you can view special events.\nOnly admins can create, edit, or delete events.\n\nThank you for using the bot 🙌",
 
         "ev_add_btn":      "➕ Add event",
         "ev_edit_btn":     "✏️ Edit event",
@@ -359,7 +359,7 @@ T: dict[str, dict[str, str]] = {
         # ── Upcoming events ──────────────────────────────────────────────
         "events_title": "🎉 Предстоящие события",
         "events_empty": "🎉 Нет предстоящих событий.",
-        "update_notification": "🔔 Обновление\n\nВ боте появился новый раздел «Специальные события» 📅\n\nВ этом разделе вы можете просматривать специальные события.\nДобавлять, изменять или удалять события могут только администраторы.\n\nСпасибо, что пользуетесь ботом 🙌"
+        "update_notification": "🔔 Обновление\n\nВ боте появился новый раздел «Специальные события» 📅\n\nВ этом разделе вы можете просматривать специальные события.\nДобавлять, изменять или удалять события могут только администраторы.\n\nСпасибо, что пользуетесь ботом 🙌",
 
         "ev_add_btn":      "➕ Добавить событие",
         "ev_edit_btn":     "✏️ Изменить событие",
@@ -510,7 +510,7 @@ T: dict[str, dict[str, str]] = {
         # ── Upcoming events ──────────────────────────────────────────────
         "events_title": "🎉 Առաջիկա հատուկ միջոցառումներ",
         "events_empty": "🎉 Առաջիկա հատուկ միջոցառումներ չկան։", 
-        "update_notification": "🔔 Թարմացում\n\nԲոտում ավելացվել է նոր բաժին՝ «Հատուկ միջոցառումներ» 📅\n\nԱյս բաժնում կարող եք տեսնել հատուկ միջոցառումները։\nՄիայն ադմինները կարող են ավելացնել, փոփոխել կամ ջնջել միջոցառումները։\n\nՇնորհակալություն օգտվելու համար 🙌"
+        "update_notification": "🔔 Թարմացում\n\nԲոտում ավելացվել է նոր բաժին՝ «Հատուկ միջոցառումներ» 📅\n\nԱյս բաժնում կարող եք տեսնել հատուկ միջոցառումները։\nՄիայն ադմինները կարող են ավելացնել, փոփոխել կամ ջնջել միջոցառումները։\n\nՇնորհակալություն օգտվելու համար 🙌",
 
 
         "ev_add_btn":      "➕ Ավելացնել միջոցառում",
