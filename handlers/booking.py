@@ -765,16 +765,17 @@ async def book_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     query = update.callback_query
     await query.answer()
     lang = _lang(context)
-    lang_val = lang
     context.user_data.clear()
-    context.user_data["lang"] = lang_val
-
-    await query.edit_message_text(
-        get_text(lang, "booking_cancelled"),
-        reply_markup=_kb_menu(lang),
-    )
-    lang = context.user_data.get("lang", "en")
     context.user_data["lang"] = lang
+
+    from handlers.start import _main_menu_keyboard
+    # Restore main menu directly — no intermediate "cancelled" message
+    await query.edit_message_text(
+        get_text(lang, "start_message"),
+        reply_markup=_main_menu_keyboard(lang),
+    )
+    if update.effective_user:
+        context.bot_data.setdefault("menu_msgs", {})[update.effective_user.id] = query.message.message_id
     return ConversationHandler.END
 
 
