@@ -159,6 +159,7 @@ async def events_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def ev_delask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    lang  = _lang(context)
     if not _is_admin(update.effective_user.id):
         await query.answer("⛔ Admin only", show_alert=True); return
     await query.answer()
@@ -251,6 +252,7 @@ async def ev_del_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 async def ev_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
+    lang  = _lang(context)
     if not _is_admin(update.effective_user.id):
         await query.answer("⛔ Admin only", show_alert=True); return SE_MENU
     await query.answer()
@@ -309,6 +311,7 @@ async def eve_field(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def eve_back_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
+    lang = _lang(context)
     ev = context.user_data.get("ev_edit_data", {})
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton(get_text(lang, "ev_field_date"), callback_data="eve_field:date")],
@@ -562,6 +565,7 @@ async def ev_back_to_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def ev_enter_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang  = _lang(context)
     title = update.message.text.strip()
     try:
         await update.message.delete()
@@ -586,6 +590,7 @@ async def ev_enter_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def ev_back_to_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
+    lang       = _lang(context)
     date_range = context.user_data["ev_date"]
     kb = _kb_text_input(back_cb="ev_back_to_end")
     await query.edit_message_text(f"📅 {date_range}\n\n✏️ Step 4 — Enter event title:", reply_markup=kb)
@@ -593,6 +598,7 @@ async def ev_back_to_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def ev_enter_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = _lang(context)
     context.user_data["ev_desc"] = update.message.text.strip()
     try:
         await update.message.delete()
@@ -604,6 +610,7 @@ async def ev_enter_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 async def ev_skip_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
+    lang = _lang(context)
     context.user_data["ev_desc"] = ""
     return await _show_location_step(query.message.chat_id, context)
 
@@ -626,6 +633,7 @@ async def _show_location_step(chat_id, context):
 async def ev_back_to_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
+    lang       = _lang(context)
     date_range = context.user_data["ev_date"]
     title      = context.user_data["ev_title"]
     kb = _kb_text_input(back_cb="ev_back_to_title", skip=True)
@@ -637,6 +645,7 @@ async def ev_back_to_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def ev_enter_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang     = _lang(context)
     location = update.message.text.strip()
     try:
         await update.message.delete()
