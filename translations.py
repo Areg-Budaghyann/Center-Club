@@ -208,6 +208,22 @@ T: dict[str, dict[str, str]] = {
         # ── Upcoming events ──────────────────────────────────────────────
         "events_title": "🎉 Upcoming special events",
         "events_empty": "🎉 No upcoming special events.",
+        "update_notification": "🔔 Update\n\nA new section “Special Events” has been added to the bot 📅\n\nIn this section, you can view special events.\nOnly admins can create, edit, or delete events.\n\nThank you for using the bot 🙌"
+
+        "ev_add_btn":      "➕ Add event",
+        "ev_edit_btn":     "✏️ Edit event",
+        "ev_del_btn":      "🗑 Delete event",
+        "ev_choose_edit":  "✏️ Choose event to edit:",
+        "ev_choose_del":   "🗑 Choose event to delete:",
+        "ev_edit_menu":    "✏️ Edit event:\n\nWhat would you like to change?",
+        "ev_confirm_del":  "🗑 Delete this event?",
+        "ev_deleted":      "✅ Event deleted.",
+        "ev_saved":        "🎉 Event saved!",
+        "ev_cancelled":    "❌ Event creation cancelled.",
+        "ev_field_date":   "📅 Date",
+        "ev_field_title":  "📌 Title",
+        "ev_field_loc":    "📍 Location",
+        "ev_field_desc":   "📝 Description",
 
     },
     # -----------------------------------------------------------------------
@@ -343,6 +359,22 @@ T: dict[str, dict[str, str]] = {
         # ── Upcoming events ──────────────────────────────────────────────
         "events_title": "🎉 Предстоящие события",
         "events_empty": "🎉 Нет предстоящих событий.",
+        "update_notification": "🔔 Обновление\n\nВ боте появился новый раздел «Специальные события» 📅\n\nВ этом разделе вы можете просматривать специальные события.\nДобавлять, изменять или удалять события могут только администраторы.\n\nСпасибо, что пользуетесь ботом 🙌"
+
+        "ev_add_btn":      "➕ Добавить событие",
+        "ev_edit_btn":     "✏️ Изменить событие",
+        "ev_del_btn":      "🗑 Удалить событие",
+        "ev_choose_edit":  "✏️ Выберите событие для изменения:",
+        "ev_choose_del":   "🗑 Выберите событие для удаления:",
+        "ev_edit_menu":    "✏️ Редактировать событие:\n\nЧто хотите изменить?",
+        "ev_confirm_del":  "🗑 Удалить это событие?",
+        "ev_deleted":      "✅ Событие удалено.",
+        "ev_saved":        "🎉 Событие сохранено!",
+        "ev_cancelled":    "❌ Создание события отменено.",
+        "ev_field_date":   "📅 Дата",
+        "ev_field_title":  "📌 Название",
+        "ev_field_loc":    "📍 Место",
+        "ev_field_desc":   "📝 Описание",
     },
     # -----------------------------------------------------------------------
     # ARMENIAN
@@ -476,8 +508,25 @@ T: dict[str, dict[str, str]] = {
         "reminder_headsup": "⏰ Ակումբը զբաղված կլինի {minutes}-ից։",
 
         # ── Upcoming events ──────────────────────────────────────────────
-        "events_title": "🎉 Առաջիկա հատուկ իրադարձություններ",
-        "events_empty": "🎉 Առաջիկա հատուկ իրադարձություններ չկա.", 
+        "events_title": "🎉 Առաջիկա հատուկ միջոցառումներ",
+        "events_empty": "🎉 Առաջիկա հատուկ միջոցառումներ չկան։", 
+        "update_notification": "🔔 Թարմացում\n\nԲոտում ավելացվել է նոր բաժին՝ «Հատուկ միջոցառումներ» 📅\n\nԱյս բաժնում կարող եք տեսնել հատուկ միջոցառումները։\nՄիայն ադմինները կարող են ավելացնել, փոփոխել կամ ջնջել միջոցառումները։\n\nՇնորհակալություն օգտվելու համար 🙌"
+
+
+        "ev_add_btn":      "➕ Ավելացնել միջոցառում",
+        "ev_edit_btn":     "✏️ Փոփոխել միջոցառումը",
+        "ev_del_btn":      "🗑 Ջնջել միջոցառումը",
+        "ev_choose_edit":  "✏️ Ընտրեք միջոցառումը փոփոխելու համար:",
+        "ev_choose_del":   "🗑 Ընտրեք միջոցառումը ջնջելու համար:",
+        "ev_edit_menu":    "✏️ Փոփոխել միջոցառումը:\n\nԻ՞նչ եք ցանկանում փոխել:",
+        "ev_confirm_del":  "🗑 Ջնջե՞լ այս միջոցառումը:",
+        "ev_deleted":      "✅ Միջոցառումը ջնջված է:",
+        "ev_saved":        "🎉 Միջոցառումը պահպանված է!",
+        "ev_cancelled":    "❌ Միջոցառման ստեղծումը չեղարկված է:",
+        "ev_field_date":   "📅 Ամսաթիվ",
+        "ev_field_title":  "📌 Անվանում",
+        "ev_field_loc":    "📍 Վայր",
+        "ev_field_desc":   "📝 Նկարագրություն",
     },
 }
 
@@ -520,22 +569,25 @@ WEEKDAY_NAMES: dict[str, list[str]] = {
  
 HELP_TEXTS: dict[str, str] = {
     "hy": (
-        "📅 Ակումբը ամրագրել — քայլ առ քայլ ընտրել և ամրագրել ժամանակը։\n"
-        "📊 Դիտել ժամանակացույցը — տեսնել ամրագրումները շաբաթվա կամ ամսվա համար։\n"
-        "📌 Իմ ամրագրումները — դիտել, փոփոխել կամ չեղարկել ձեր ամրագրումները։\n"
-        "🟢 Ազատ ժամանակ — ստուգել, թե որ ժամերն են հասանելի։"
+        "📅 Ակումբը ամրագրել — քայլ առ քայլ ընտրել և ամրագրել ժամանակը։\n\n"
+        "📊 Դիտել ժամանակացույցը — տեսնել ամրագրումները շաբաթվա կամ ամսվա համար։\n\n"
+        "📌 Իմ ամրագրումները — դիտել, փոփոխել կամ չեղարկել ձեր ամրագրումները։\n\n"
+        "🟢 Ազատ ժամանակ — ստուգել, թե որ ժամերն են հասանելի։\n\n"
+        "🎉 Հատուկ միջոցառումներ — այստեղ կտեսնեք առաջիկա հատուկ միջոցառւոմները։ Օրինակ՝ Սպորտային ճամբարներ, Բիլիվ, Լիձեռսկի\n\n"
     ),
     "ru": (
-        "📅 Забронировать клуб — пошагово выбрать и зарезервировать время.\n"
-        "📊 Посмотреть расписание — увидеть бронирования на неделю или месяц.\n"
-        "📌 Мои бронирования — просмотреть, изменить или отменить свои брони.\n"
+        "📅 Забронировать клуб — пошагово выбрать и зарезервировать время.\n\n"
+        "📊 Посмотреть расписание — увидеть бронирования на неделю или месяц.\n\n"
+        "📌 Мои бронирования — просмотреть, изменить или отменить свои брони.\n\n"
         "🟢 Свободное время — проверить, какие часы доступны."
+        "🎉 Специальные события — здесь вы увидите предстоящие специальные мероприятия. Например: спортивные лагеря, Билив, Лидерски"
     ),
     "en": (
-        "📅 Book club — reserve a time slot step by step.\n"
-        "📊 View schedule — see weekly or monthly bookings.\n"
-        "📌 My bookings — view, edit, or cancel your reservations.\n"
+        "📅 Book club — reserve a time slot step by step.\n\n"
+        "📊 View schedule — see weekly or monthly bookings.\n\n"
+        "📌 My bookings — view, edit, or cancel your reservations.\n\n"
         "🟢 Free time — check what hours are available."
+        "🎉 Special Events — here you will see upcoming special events. For example: sport camps, Believe camp, Leaders meeting"
     ),
 } 
 DEFAULT_LANG = "en"
