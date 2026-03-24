@@ -75,6 +75,15 @@ def _storage_name(user) -> str:
 
 logger = logging.getLogger(__name__)
 
+async def _auto_del_msg(bot, chat_id: int, msg_id: int, delay: int = 300) -> None:
+    """Auto-delete a message after `delay` seconds (default 5 min). Silent."""
+    import asyncio
+    await asyncio.sleep(delay)
+    try:
+        await bot.delete_message(chat_id=chat_id, message_id=msg_id)
+    except Exception:
+        pass
+
 def _date_in_event_range(date_str: str, event_date: str) -> bool:
     """Check if a date falls within an event's date range."""
     try:
@@ -442,14 +451,16 @@ async def pick_duration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     start_hour  = context.user_data["start_hour"]
     context.user_data["duration"] = duration
 
-    # Edit the message and store its ID so enter_title can edit it again
+    # Show title prompt with a Back button
+    from telegram import InlineKeyboardButton as _IKB, InlineKeyboardMarkup as _IKM
+    back_kb = _IKM([[_IKB(get_text(lang, "btn_back"), callback_data="back_to_duration")]])
     msg = await query.edit_message_text(
         get_text(lang, "enter_title",
                  date=chosen_date,
                  hour=f"{start_hour:02d}",
                  duration=duration),
+        reply_markup=back_kb,
     )
-    # Store message_id so we can edit this message when user types title
     context.user_data["title_prompt_msg_id"] = msg.message_id
     return STATE_ENTER_TITLE
 
@@ -462,14 +473,32 @@ async def back_to_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     start_hour  = context.user_data["start_hour"]
     duration    = context.user_data["duration"]
 
+    from telegram import InlineKeyboardButton as _IKB, InlineKeyboardMarkup as _IKM
+    back_kb = _IKM([[_IKB(get_text(lang, "btn_back"), callback_data="back_to_duration")]])
     msg = await query.edit_message_text(
         get_text(lang, "enter_title_again",
                  date=chosen_date,
                  hour=f"{start_hour:02d}",
                  duration=duration),
+        reply_markup=back_kb,
     )
     context.user_data["title_prompt_msg_id"] = msg.message_id
     return STATE_ENTER_TITLE
+
+
+
+async def back_to_duration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Back from title entry to duration picker."""
+    query = update.callback_query
+    await query.answer()
+    lang        = _lang(context)
+    chosen_date = context.user_data.get("date", "")
+    start_hour  = context.user_data.get("start_hour", 0)
+    await query.edit_message_text(
+        get_text(lang, "choose_duration", date=chosen_date, hour=f"{start_hour:02d}"),
+        reply_markup=_kb_duration(chosen_date, start_hour, lang),
+    )
+    return STATE_PICK_DURATION
 
 
 # ===========================================================================
@@ -652,19 +681,21 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                end=new_booking.end_time,
                                title=new_booking.title,
                                user=new_booking.display_user)
-                await context.bot.send_message(
+                sent = await context.bot.send_message(
                     chat_id=uid,
                     text=msg,
                     reply_markup=InlineKeyboardMarkup([[
                         InlineKeyboardButton(get_text(ul, "btn_dismiss"), callback_data="notif_dismiss")
                     ]]),
                 )
+                import asyncio as _aio
+                _aio.ensure_future(_auto_del_msg(context.bot, uid, sent.message_id))
             except Exception as exc:
                 logger.warning("Notify user_id=%d failed: %s", uid, exc)
 
         if GROUP_CHAT_ID:
             try:
-                await context.bot.send_message(
+                sent_grp = await context.bot.send_message(
                     chat_id=GROUP_CHAT_ID,
                     text=get_text("en", "group_notification",
                                   day=_day_name("en"),
@@ -673,9 +704,11 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                   title=new_booking.title,
                                   user=new_booking.username),
                     reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton(get_text(ul, "btn_dismiss"), callback_data="notif_dismiss")
+                        InlineKeyboardButton(get_text("en", "btn_dismiss"), callback_data="notif_dismiss")
                     ]]),
                 )
+                import asyncio as _aio2
+                _aio2.ensure_future(_auto_del_msg(context.bot, GROUP_CHAT_ID, sent_grp.message_id))
             except Exception as exc:
                 logger.warning("Group notification failed: %s", exc)
 
@@ -871,6 +904,7 @@ def register(application) -> None:
                 CallbackQueryHandler(change_lang_in_flow, pattern=r"^lang:(en|ru|hy)$"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, enter_title),
                 CommandHandler("start", _ignore_start_in_flow),
+                CallbackQueryHandler(back_to_duration, pattern="^back_to_duration$"),
                 CallbackQueryHandler(book_cancel, pattern="^book_cancel$"),
             ],
             STATE_CONFIRM: [

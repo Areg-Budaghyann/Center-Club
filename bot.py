@@ -14,7 +14,7 @@ Responsibilities:
 import logging
 import os
 
-from telegram.ext import Application, MessageHandler, filters
+from telegram.ext import Application, MessageHandler, filters, PicklePersistence
 
 import database
 from config import BOT_TOKEN
@@ -53,7 +53,10 @@ async def _track_user(update, context) -> None:
 
 def build_application() -> Application:
     """Wire everything together and return the Application."""
-    app = Application.builder().token(BOT_TOKEN).build()
+    import os
+    persistence_path = os.path.join(os.path.dirname(os.getenv("DATABASE_PATH", ".")), "bot_persistence")
+    persistence = PicklePersistence(filepath=persistence_path)
+    app = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
 
     # Track every user automatically before any handler runs
     from telegram.ext import TypeHandler

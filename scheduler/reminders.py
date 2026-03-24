@@ -99,7 +99,7 @@ async def _send_reminders(bot: Bot) -> None:
             db.mark_reminder_sent(b.id)
             logger.info("Reminder sent: booking id=%d → user_id=%d", b.id, b.user_id)
             # Auto-delete after 15 minutes
-            asyncio.ensure_future(_auto_delete(bot, b.user_id, sent.message_id, 15 * 60))
+            asyncio.ensure_future(_auto_delete(bot, b.user_id, sent.message_id, 5 * 60))
         except TelegramError as exc:
             logger.warning("Personal reminder failed user_id=%d: %s", b.user_id, exc)
             continue
@@ -132,7 +132,7 @@ async def _send_reminders(bot: Bot) -> None:
                     reply_markup = headsup_kb,
                 )
                 # Auto-delete after 15 minutes
-                asyncio.ensure_future(_auto_delete(bot, uid, sent.message_id, 15 * 60))
+                asyncio.ensure_future(_auto_delete(bot, uid, sent.message_id, 5 * 60))
             except TelegramError as exc:
                 logger.warning("Heads-up failed user_id=%d: %s", uid, exc)
 
@@ -156,7 +156,7 @@ async def _send_reminders(bot: Bot) -> None:
                         )
                     ]]),
                 )
-                asyncio.ensure_future(_auto_delete(bot, GROUP_CHAT_ID, sent.message_id, 15 * 60))
+                asyncio.ensure_future(_auto_delete(bot, GROUP_CHAT_ID, sent.message_id, 5 * 60))
             except TelegramError as exc:
                 logger.warning("Group chat reminder failed: %s", exc)
 
