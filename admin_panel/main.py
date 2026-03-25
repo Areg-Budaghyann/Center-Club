@@ -44,7 +44,11 @@ SECRET_KEY   = os.getenv("PANEL_SECRET",  secrets.token_hex(32))
 BASE_DIR = Path(__file__).parent
 
 app = FastAPI(title="Center Club Admin Panel")
-app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+
+# Create static dir if missing (Railway deployment)
+_static_dir = BASE_DIR / "static"
+_static_dir.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 # ── Simple session store (in-memory) ─────────────────────────────────────────
