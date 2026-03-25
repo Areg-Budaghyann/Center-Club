@@ -2,6 +2,6 @@
 builder = "DOCKERFILE"
 
 [deploy]
-startCommand = "python bot.py"
+startCommand = "bash start.sh"
 restartPolicyType = "NEVER"
 numReplicas = 1
