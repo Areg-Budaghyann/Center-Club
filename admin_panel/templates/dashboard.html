@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% set active = "dashboard" %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+{% if not db_ok %}
+<div class="alert alert-danger" style="margin-bottom:20px;">
+  ⚠️ Database not found at <code style="font-family:monospace;">{{ db_path }}</code><br>
+  Set the correct path: <code>set DATABASE_PATH=C:\path	o\office_test.db</code> and restart.
+</div>
+{% endif %}
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Users</div>
+    <div class="stat-value">{{ stats.users }}</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-label">Total Bookings</div>
+    <div class="stat-value">{{ stats.bookings }}</div>
+  </div>
+  <div class="stat-card cyan">
+    <div class="stat-label">Upcoming</div>
+    <div class="stat-value">{{ stats.upcoming }}</div>
+  </div>
+  <div class="stat-card warn">
+    <div class="stat-label">Special Events</div>
+    <div class="stat-value">{{ stats.events }}</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+  <div class="card">
+    <div class="section-header">
+      <div class="section-title">Quick Actions</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <a href="/bookings" class="btn btn-ghost">◆ View All Bookings</a>
+      <a href="/users" class="btn btn-ghost">◈ Manage Users</a>
+      <a href="/events" class="btn btn-ghost">✦ Manage Events</a>
+      <a href="/notifications" class="btn btn-primary">◉ Send Notification</a>
+    </div>
+  </div>
+  <div class="card">
+    <div class="section-header">
+      <div class="section-title">System Info</div>
+    </div>
+    <table>
+      <tr><td style="color:var(--text2);font-size:12px;">Database</td><td class="mono" style="font-size:12px;">SQLite / WAL</td></tr>
+      <tr><td style="color:var(--text2);font-size:12px;">Bot Framework</td><td class="mono" style="font-size:12px;">python-telegram-bot 21.6</td></tr>
+      <tr><td style="color:var(--text2);font-size:12px;">Languages</td><td class="mono" style="font-size:12px;">EN / RU / HY</td></tr>
+      <tr><td style="color:var(--text2);font-size:12px;">Scheduler</td><td class="mono" style="font-size:12px;">APScheduler 3.10</td></tr>
+    </table>
+  </div>
+</div>
+{% endblock %}

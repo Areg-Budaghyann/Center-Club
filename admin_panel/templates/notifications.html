@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% set active = "notifications" %}
+{% block page_title %}Notifications{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+
+  <!-- Clear notifications -->
+  <div class="card">
+    <div class="section-title" style="margin-bottom:8px;">🗑 Clear All Notifications</div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:20px;line-height:1.6;">
+      Delete all pending notification/reminder messages from users' chats.<br>
+      Main menu messages are <strong style="color:var(--success)">protected</strong> and will not be deleted.
+    </p>
+
+    <div id="notifCount" style="background:var(--surface2);border-radius:6px;padding:14px;margin-bottom:16px;">
+      <span style="font-family:var(--mono);font-size:12px;color:var(--text2);">PENDING</span>
+      <div style="font-size:28px;font-weight:600;font-family:var(--mono);margin-top:4px;" id="countVal">—</div>
+    </div>
+
+    <button class="btn btn-danger" onclick="clearNotifications()" style="width:100%;" id="clearBtn">
+      🗑 Delete All Notifications
+    </button>
+    <div id="clearResult" style="margin-top:12px;display:none;"></div>
+  </div>
+
+  <!-- Broadcast -->
+  <div class="card">
+    <div class="section-title" style="margin-bottom:8px;">📢 Broadcast Message</div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:20px;">
+      Queue a message to all users. The bot will send it on next startup when <code>UPDATE_NOTIFY=1</code>.
+    </p>
+    <div class="form-group">
+      <label>Message</label>
+      <textarea id="broadcastMsg" rows="5" placeholder="Type your message..."></textarea>
+    </div>
+    <button class="btn btn-primary" onclick="sendBroadcast()" style="width:100%;">
+      Send to All Users
+    </button>
+    <div id="broadcastResult" style="margin-top:12px;display:none;"></div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Load notification count on page load
+async function loadCount() {
+  try {
+    const r = await fetch('/api/notifications/count');
+    const d = await r.json();
+    document.getElementById('countVal').textContent = d.count ?? '—';
+  } catch(e) {
+    document.getElementById('countVal').textContent = 'N/A';
+  }
+}
+loadCount();
+
+async function clearNotifications() {
+  const btn = document.getElementById('clearBtn');
+  const res = document.getElementById('clearResult');
+  btn.disabled = true;
+  btn.textContent = 'Deleting...';
+  res.style.display = 'none';
+
+  try {
+    const r = await fetch('/api/clear-notifications', { method: 'POST' });
+    const data = await r.json();
+    res.style.display = 'block';
+    if (r.ok) {
+      res.innerHTML = `<div class="alert alert-success">✓ Deleted ${data.deleted} messages. Failed: ${data.failed}. Total: ${data.total}</div>`;
+      loadCount();
+    } else {
+      res.innerHTML = `<div class="alert alert-danger">Error: ${data.detail || data.error}</div>`;
+    }
+  } catch(e) {
+    res.style.display = 'block';
+    res.innerHTML = '<div class="alert alert-danger">Network error</div>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🗑 Delete All Notifications';
+  }
+}
+
+async function sendBroadcast() {
+  const msg = document.getElementById('broadcastMsg').value.trim();
+  const res = document.getElementById('broadcastResult');
+  if (!msg) { alert('Please enter a message'); return; }
+
+  try {
+    const r = await fetch('/api/notify/all', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: msg})
+    });
+    const data = await r.json();
+    res.style.display = 'block';
+    if (r.ok) {
+      res.innerHTML = '<div class="alert alert-success">✓ Broadcast queued</div>';
+      document.getElementById('broadcastMsg').value = '';
+    } else {
+      res.innerHTML = `<div class="alert alert-danger">Error: ${data.detail || 'Unknown'}</div>`;
+    }
+  } catch(e) {
+    res.style.display = 'block';
+    res.innerHTML = '<div class="alert alert-danger">Network error</div>';
+  }
+}
+</script>
+{% endblock %}

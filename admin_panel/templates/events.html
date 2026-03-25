@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% set active = "events" %}
+{% block page_title %}Special Events{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start;">
+
+  <!-- Events list -->
+  <div class="card">
+    <div class="section-header">
+      <div class="section-title">Events <span style="color:var(--text2);font-size:13px;font-weight:400;">({{ events|length }})</span></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Title</th><th>Date</th><th>Location</th><th>Description</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for e in events %}
+          <tr>
+            <td><strong>{{ e.title }}</strong></td>
+            <td class="mono" style="font-size:12px;">{{ e.event_date }}</td>
+            <td style="color:var(--text2);font-size:13px;">{{ e.location }}</td>
+            <td style="color:var(--text2);font-size:12px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ e.description or '—' }}</td>
+            <td>
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-ghost btn-sm" onclick="openEdit({{ e|tojson }})">Edit</button>
+                <form method="post" action="/events/{{ e.id }}/delete" onsubmit="return confirm('Delete?')" style="display:inline;">
+                  <button type="submit" class="btn btn-danger btn-sm">Del</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" style="text-align:center;color:var(--text2);padding:32px;">No events yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Create form -->
+  <div class="card">
+    <div class="section-title" style="margin-bottom:20px;">✦ New Event</div>
+    <form method="post" action="/events/create">
+      <div class="form-group">
+        <label>Title *</label>
+        <input type="text" name="title" required placeholder="Youth Camp">
+      </div>
+      <div class="form-group">
+        <label>Date * (e.g. 2026-04-15 or 2026-04-15 – 2026-04-18)</label>
+        <input type="text" name="event_date" required placeholder="2026-04-15">
+      </div>
+      <div class="form-group">
+        <label>Time (optional)</label>
+        <input type="text" name="event_time" placeholder="18:00 – 21:00">
+      </div>
+      <div class="form-group">
+        <label>Location *</label>
+        <input type="text" name="location" required placeholder="Center Club, Main Hall">
+      </div>
+      <div class="form-group">
+        <label>Description (optional)</label>
+        <textarea name="description" rows="3" placeholder="Event details..."></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;">Create Event</button>
+    </form>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-title">✏️ Edit Event</div>
+    <form method="post" id="editForm">
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" name="title" id="edit_title" required>
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="text" name="event_date" id="edit_date" required>
+      </div>
+      <div class="form-group">
+        <label>Time</label>
+        <input type="text" name="event_time" id="edit_time">
+      </div>
+      <div class="form-group">
+        <label>Location</label>
+        <input type="text" name="location" id="edit_location" required>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" id="edit_desc" rows="3"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeEdit()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openEdit(ev) {
+  document.getElementById('edit_title').value = ev.title || '';
+  document.getElementById('edit_date').value = ev.event_date || '';
+  document.getElementById('edit_time').value = ev.event_time || '';
+  document.getElementById('edit_location').value = ev.location || '';
+  document.getElementById('edit_desc').value = ev.description || '';
+  document.getElementById('editForm').action = '/events/' + ev.id + '/edit';
+  document.getElementById('editModal').classList.add('open');
+}
+function closeEdit() {
+  document.getElementById('editModal').classList.remove('open');
+}
+document.getElementById('editModal').addEventListener('click', function(e) {
+  if (e.target === this) closeEdit();
+});
+</script>
+{% endblock %}

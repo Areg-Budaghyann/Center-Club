@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login · Center Club Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f; --surface: #111118; --border: #2a2a38;
+  --accent: #7c6af7; --danger: #ff4757; --text: #e8e8f0; --text2: #8888a8;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'IBM Plex Sans', sans-serif;
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+}
+.login-wrap {
+  width: 360px;
+}
+.login-logo {
+  text-align: center; margin-bottom: 40px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.login-logo .icon { font-size: 36px; display: block; margin-bottom: 8px; }
+.login-logo h1 { font-size: 14px; color: var(--accent); letter-spacing: 3px; text-transform: uppercase; }
+.login-logo p { font-size: 11px; color: var(--text2); margin-top: 4px; letter-spacing: 1px; }
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 32px;
+}
+label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px; }
+input {
+  width: 100%; background: #0a0a0f; border: 1px solid var(--border);
+  color: var(--text); border-radius: 6px; padding: 10px 14px;
+  font-size: 14px; font-family: 'IBM Plex Sans', sans-serif; outline: none;
+  transition: border-color 0.15s;
+}
+input:focus { border-color: var(--accent); }
+.form-group { margin-bottom: 20px; }
+.btn {
+  width: 100%; padding: 11px; background: var(--accent); color: white;
+  border: none; border-radius: 6px; font-size: 14px; font-weight: 500;
+  cursor: pointer; font-family: 'IBM Plex Sans', sans-serif;
+  transition: background 0.15s; margin-top: 4px;
+}
+.btn:hover { background: #6b5ae0; }
+.error { background: rgba(255,71,87,0.1); border: 1px solid rgba(255,71,87,0.3); color: var(--danger); padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-logo">
+    <span class="icon">⚡</span>
+    <h1>Center Club</h1>
+    <p>ADMIN PANEL</p>
+  </div>
+  <div class="card">
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="/login">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" name="username" autofocus autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" name="password">
+      </div>
+      <button type="submit" class="btn">Sign in →</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>
