@@ -295,12 +295,66 @@ def get_user_lang(user_id: int):
     return row["lang"] if row else None
 
 
+# ── Notifications tracking ────────────────────────────────────────────────────
+
+def save_notification(user_id: int, chat_id: int, message_id: int) -> None:
+    """Save a notification message ID to DB so admin panel can clear it."""
+    try:
+        with _connect() as conn:
+            conn.execute(
+                "INSERT INTO pending_notifications (user_id, chat_id, message_id) VALUES (?,?,?)",
+                (user_id, chat_id, message_id)
+            )
+    except Exception:
+        pass
+
+
+def get_all_notifications() -> list[dict]:
+    """Get all pending notification message IDs."""
+    try:
+        with _connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM pending_notifications ORDER BY sent_at DESC"
+            ).fetchall()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+
+def clear_notifications(user_id: int = None) -> int:
+    """Delete notification records. If user_id given, only that user. Returns count deleted."""
+    try:
+        with _connect() as conn:
+            if user_id:
+                cur = conn.execute(
+                    "DELETE FROM pending_notifications WHERE user_id = ?", (user_id,)
+                )
+            else:
+                cur = conn.execute("DELETE FROM pending_notifications")
+        return cur.rowcount
+    except Exception:
+        return 0
+
+
 # ── Special events ────────────────────────────────────────────────────────────
 
 def _ensure_special_events_table() -> None:
     """Create special_events table if it doesn't exist (migration for existing DBs)."""
     with _connect() as conn:
         conn.execute("""
+            CREATE TABLE IF NOT EXISTS pending_notifications (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     INTEGER NOT NULL,
+                chat_id     INTEGER NOT NULL,
+                message_id  INTEGER NOT NULL,
+                sent_at     TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS event_reminder_sent (
+                event_id    INTEGER PRIMARY KEY,
+                sent_at     TEXT NOT NULL
+            );
+
             CREATE TABLE IF NOT EXISTS special_events (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 title       TEXT    NOT NULL,
