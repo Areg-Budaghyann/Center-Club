@@ -136,7 +136,7 @@ def _events_view(lang: str, user_id: int) -> tuple[str, InlineKeyboardMarkup]:
     rows = []
 
     for e in events:
-        text += f"\n━━━━━━━━━━━━━━━━━━━━━━\n{_event_block(e)}\n"
+        text += f"\n            \n{_event_block(e)}\n"
 
     # Admin: management buttons at the bottom
     if is_admin:

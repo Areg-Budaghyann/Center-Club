@@ -351,6 +351,27 @@ async def notifications_count(request: Request):
         return JSONResponse({"count": 0})
 
 
+
+
+@app.post("/api/reset-bot")
+async def reset_bot(request: Request):
+    """Trigger a safe soft reset of bot runtime state."""
+    if not _get_session(request):
+        return JSONResponse({"error": "Not authenticated"}, status_code=401)
+
+    try:
+        db_dir = os.path.dirname(os.path.abspath(DB_PATH)) or "."
+        flag_path = os.path.join(db_dir, "bot_reset.flag")
+        from datetime import datetime as _dt
+        with open(flag_path, "w") as f:
+            f.write(_dt.utcnow().isoformat())
+        return JSONResponse({
+            "status": "ok",
+            "message": "Reset flag written. Bot will reset on next user interaction.",
+        })
+    except Exception as e:
+        raise HTTPException(500, f"Could not write reset flag: {e}")
+
 @app.get("/api/stats")
 async def api_stats(request: Request):
     if not _get_session(request):
