@@ -30,6 +30,26 @@ def _connect() -> sqlite3.Connection:
 
 # ── Schema initialisation ─────────────────────────────────────────────────────
 
+def _run_migrations() -> None:
+    """Run safe schema migrations for new tables."""
+    with _connect() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS pending_notifications (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     INTEGER NOT NULL,
+                chat_id     INTEGER NOT NULL,
+                message_id  INTEGER NOT NULL,
+                sent_at     TEXT DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS event_reminder_sent (
+                event_id    INTEGER PRIMARY KEY,
+                sent_at     TEXT NOT NULL
+            )
+        """)
+
+
 def init_db() -> None:
     import os
     db_dir = os.path.dirname(DATABASE_PATH)
