@@ -33,7 +33,7 @@ def _connect() -> sqlite3.Connection:
 def _run_migrations() -> None:
     """Run safe schema migrations for new tables."""
     with _connect() as conn:
-        conn.execute("""
+        conn.executescript("""
             CREATE TABLE IF NOT EXISTS pending_notifications (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id     INTEGER NOT NULL,
@@ -368,13 +368,15 @@ def _ensure_special_events_table() -> None:
                 chat_id     INTEGER NOT NULL,
                 message_id  INTEGER NOT NULL,
                 sent_at     TEXT DEFAULT (datetime('now'))
-            );
-
+            )
+        """)
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS event_reminder_sent (
                 event_id    INTEGER PRIMARY KEY,
                 sent_at     TEXT NOT NULL
-            );
-
+            )
+        """)
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS special_events (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 title       TEXT    NOT NULL,
