@@ -267,33 +267,63 @@ async def notifications_page(request: Request):
 
 @app.post("/api/notify/all")
 async def notify_all(request: Request):
-    """Queue a broadcast message."""
+    """Send broadcast message to all users immediately via Telegram API."""
     if not _get_session(request):
         return JSONResponse({"error": "Not authenticated"}, status_code=401)
     data = await request.json()
     message = data.get("message", "").strip()
     if not message:
         raise HTTPException(400, "Message is required")
-    db_dir = os.path.dirname(os.path.abspath(DB_PATH)) or "."
-    flag_path = os.path.join(db_dir, "pending_broadcast.txt")
+
+    if not BOT_TOKEN:
+        raise HTTPException(500, "BOT_TOKEN not configured — add it to environment variables")
+
+    # Get all users from DB
     try:
-        with open(flag_path, "w", encoding="utf-8") as f:
-            f.write(message)
+        conn = _db()
+        rows = conn.execute("SELECT user_id FROM users").fetchall()
+        user_ids = [r["user_id"] for r in rows]
+        conn.close()
     except Exception as e:
-        raise HTTPException(500, f"Could not write broadcast file: {e}")
-    return JSONResponse({"status": "ok", "message": "Broadcast queued"})
+        raise HTTPException(500, f"DB error: {e}")
+
+    if not user_ids:
+        return JSONResponse({"status": "ok", "sent": 0, "failed": 0, "total": 0})
+
+    import httpx
+    sent = 0
+    failed = 0
+    async with httpx.AsyncClient() as client:
+        for uid in user_ids:
+            try:
+                resp = await client.post(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                    json={"chat_id": uid, "text": message},
+                    timeout=10
+                )
+                if resp.status_code == 200:
+                    sent += 1
+                else:
+                    failed += 1
+            except Exception:
+                failed += 1
+
+    return JSONResponse({
+        "status": "ok",
+        "sent": sent,
+        "failed": failed,
+        "total": len(user_ids),
+        "message": f"Sent to {sent}/{len(user_ids)} users"
+    })
 
 
 @app.post("/api/clear-notifications")
 async def clear_notifications_api(request: Request):
-    """Delete all pending notification messages via Telegram API."""
+    """Delete all pending notification messages via Telegram API, then clear DB."""
     if not _get_session(request):
         return JSONResponse({"error": "Not authenticated"}, status_code=401)
 
-    if not BOT_TOKEN:
-        raise HTTPException(500, "BOT_TOKEN not configured")
-
-    import httpx
+    # Get all pending notifications
     notifications = []
     try:
         conn = _db()
@@ -301,26 +331,34 @@ async def clear_notifications_api(request: Request):
         notifications = [dict(r) for r in rows]
         conn.close()
     except Exception as e:
-        raise HTTPException(500, f"DB error: {e}")
+        # Table may not exist yet — just return ok with 0
+        return JSONResponse({"status": "ok", "deleted": 0, "failed": 0, "total": 0,
+                             "note": f"DB: {e}"})
 
     deleted = 0
     failed = 0
-    async with httpx.AsyncClient() as client:
-        for n in notifications:
-            try:
-                resp = await client.post(
-                    f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
-                    json={"chat_id": n["chat_id"], "message_id": n["message_id"]},
-                    timeout=5
-                )
-                if resp.status_code == 200:
-                    deleted += 1
-                else:
-                    failed += 1
-            except Exception:
-                failed += 1
 
-    # Clear from DB
+    # Try to delete via Telegram API if BOT_TOKEN available
+    if BOT_TOKEN and notifications:
+        import httpx
+        async with httpx.AsyncClient() as client:
+            for n in notifications:
+                try:
+                    resp = await client.post(
+                        f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                        json={"chat_id": n["chat_id"], "message_id": n["message_id"]},
+                        timeout=5
+                    )
+                    if resp.status_code == 200:
+                        deleted += 1
+                    else:
+                        failed += 1  # Already deleted or not found — still ok
+                except Exception:
+                    failed += 1
+    else:
+        failed = len(notifications)
+
+    # Always clear from DB regardless
     try:
         conn = _db()
         conn.execute("DELETE FROM pending_notifications")
