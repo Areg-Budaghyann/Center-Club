@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% set active = "bookings" %}
+{% block page_title %}Bookings{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:20px;">
+  <form method="get" action="/bookings" style="display:flex;gap:12px;align-items:flex-end;">
+    <div class="form-group" style="margin:0;flex:0 0 200px;">
+      <label>Filter by date</label>
+      <input type="date" name="filter_date" value="{{ filter_date }}">
+    </div>
+    <button type="submit" class="btn btn-ghost">Filter</button>
+    {% if filter_date %}<a href="/bookings" class="btn btn-ghost">Clear</a>{% endif %}
+  </form>
+</div>
+
+<div class="card">
+  <div class="section-header">
+    <div class="section-title">
+      {% if filter_date %}Bookings on {{ filter_date }}{% else %}All Bookings{% endif %}
+      <span style="color:var(--text2);font-size:13px;font-weight:400;">({{ bookings|length }})</span>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>User</th>
+          <th>Title</th>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Duration</th>
+          <th>Created</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in bookings %}
+        <tr>
+          <td class="mono" style="color:var(--text2);">#{{ b.id }}</td>
+          <td class="mono" style="font-size:12px;">{{ b.username }}</td>
+          <td>{{ b.title }}</td>
+          <td class="mono">{{ b.date }}</td>
+          <td class="mono">{{ b.start_time }}</td>
+          <td class="mono">{{ b.duration }}h</td>
+          <td class="mono" style="color:var(--text2);font-size:12px;">{{ b.created_at[:16] if b.created_at else '—' }}</td>
+          <td>
+            <form method="post" action="/bookings/{{ b.id }}/delete" onsubmit="return confirm('Delete booking #{{ b.id }}?')">
+              <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" style="text-align:center;color:var(--text2);padding:32px;">No bookings found</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

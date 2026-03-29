@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% set active = "users" %}
+{% block page_title %}Users{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="section-header">
+    <div class="section-title">All Users <span style="color:var(--text2);font-size:13px;font-weight:400;">({{ users|length }})</span></div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>User ID</th>
+          <th>Username</th>
+          <th>Language</th>
+          <th>First Seen</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td class="mono">{{ u.user_id }}</td>
+          <td>{{ u.username or '—' }}</td>
+          <td><span class="badge badge-{{ u.lang }}">{{ u.lang }}</span></td>
+          <td class="mono" style="color:var(--text2);font-size:12px;">{{ u.first_seen[:16] if u.first_seen else '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" style="text-align:center;color:var(--text2);padding:32px;">No users yet</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

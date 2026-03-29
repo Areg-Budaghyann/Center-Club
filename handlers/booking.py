@@ -724,9 +724,10 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 )
                 import asyncio as _aio
                 _aio.ensure_future(_auto_del_msg(context.bot, uid, sent.message_id))
-                # Track for cleanup on /start
+                # Track in memory and DB
                 notifs = context.bot_data.setdefault("pending_notifs", {})
                 notifs.setdefault(uid, []).append(sent.message_id)
+                _db.save_notification(uid, uid, sent.message_id)
             except Exception as exc:
                 logger.warning("Notify user_id=%d failed: %s", uid, exc)
 

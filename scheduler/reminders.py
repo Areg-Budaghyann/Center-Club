@@ -2,15 +2,16 @@
 scheduler/reminders.py
 -----------------------
 Runs every minute.
-- Sends reminders 1 hour before each booking (Asia/Yerevan timezone)
+- Sends booking reminders 1 hour before each booking (Asia/Yerevan timezone)
+- Sends special event reminders 24 hours before each event
 - Personal reminder to booking owner
 - Heads-up to all other users with dismiss button
-- Auto-deletes reminder messages after 15 minutes
+- Auto-deletes reminder messages after 5 minutes
 """
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -23,15 +24,15 @@ from translations import get_text, WEEKDAY_NAMES, MONTH_SHORT
 
 logger = logging.getLogger(__name__)
 
-# Module-level dict to track pending notification message IDs per user
-# {user_id: [msg_id, msg_id, ...]}
-PENDING_NOTIFS: dict[int, list[int]] = {}
-
 YEREVAN = ZoneInfo("Asia/Yerevan")
 
+# Module-level dict to track pending notification message IDs per user
+PENDING_NOTIFS: dict[int, list[int]] = {}
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _get_all_user_langs() -> dict:
-    """Fetch all user langs in a single DB query."""
     try:
         with db._connect() as conn:
             rows = conn.execute("SELECT user_id, lang FROM users").fetchall()
@@ -41,16 +42,13 @@ def _get_all_user_langs() -> dict:
 
 
 def _day_label(date_str: str, lang: str) -> str:
-    """Return translated day label e.g. 'Երкушабти, 18 Мрт'"""
-    from datetime import date
     d = date.fromisoformat(date_str)
-    day_name  = WEEKDAY_NAMES.get(lang, WEEKDAY_NAMES["en"])[d.weekday()]
+    day_name   = WEEKDAY_NAMES.get(lang, WEEKDAY_NAMES["en"])[d.weekday()]
     month_name = MONTH_SHORT.get(lang, MONTH_SHORT["en"])[d.month - 1]
     return f"{day_name}, {d.day} {month_name}"
 
 
 async def _auto_delete(bot: Bot, chat_id: int, message_id: int, delay_seconds: int) -> None:
-    """Delete a message after delay_seconds. Silent — ignores errors."""
     await asyncio.sleep(delay_seconds)
     try:
         await bot.delete_message(chat_id=chat_id, message_id=message_id)
@@ -58,12 +56,28 @@ async def _auto_delete(bot: Bot, chat_id: int, message_id: int, delay_seconds: i
         pass
 
 
+async def _send_with_dismiss(bot: Bot, chat_id: int, text: str, lang: str) -> None:
+    kb = InlineKeyboardMarkup([[
+        InlineKeyboardButton(get_text(lang, "btn_dismiss"), callback_data="notif_dismiss")
+    ]])
+    try:
+        sent = await bot.send_message(chat_id=chat_id, text=text, reply_markup=kb)
+        asyncio.ensure_future(_auto_delete(bot, chat_id, sent.message_id, 5 * 60))
+        PENDING_NOTIFS.setdefault(chat_id, []).append(sent.message_id)
+        try:
+            db.save_notification(chat_id, chat_id, sent.message_id)
+        except Exception:
+            pass
+    except TelegramError as exc:
+        logger.warning("Notification failed chat_id=%d: %s", chat_id, exc)
+
+
+# ── Booking reminders ─────────────────────────────────────────────────────────
+
 async def _send_reminders(bot: Bot) -> None:
-    # ── Current time in Yerevan ───────────────────────────────────────────
     now_yerevan    = datetime.now(YEREVAN)
     target_yerevan = now_yerevan + timedelta(minutes=REMINDER_MINUTES_BEFORE)
 
-    # Window: bookings starting between now+REMINDER and now+REMINDER+1min
     window_start = target_yerevan.strftime("%Y-%m-%dT%H:%M")
     window_end   = (target_yerevan + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M")
 
@@ -74,8 +88,6 @@ async def _send_reminders(bot: Bot) -> None:
     user_langs = _get_all_user_langs()
 
     for b in bookings:
-
-        # ── 1. Personal reminder to booking owner ────────────────────────
         owner_lang = user_langs.get(b.user_id, "en")
         day_label  = _day_label(b.date, owner_lang)
 
@@ -87,32 +99,26 @@ async def _send_reminders(bot: Bot) -> None:
             f"👤 {b.display_user}"
         )
 
-        dismiss_kb = InlineKeyboardMarkup([[
-            InlineKeyboardButton(
-                get_text(owner_lang, "btn_dismiss"),
-                callback_data="notif_dismiss"
-            )
-        ]])
-
         try:
-            sent = await bot.send_message(
-                chat_id      = b.user_id,
-                text         = personal_msg,
-                reply_markup = dismiss_kb,
-            )
+            kb = InlineKeyboardMarkup([[
+                InlineKeyboardButton(get_text(owner_lang, "btn_dismiss"), callback_data="notif_dismiss")
+            ]])
+            sent = await bot.send_message(chat_id=b.user_id, text=personal_msg, reply_markup=kb)
             db.mark_reminder_sent(b.id)
             logger.info("Reminder sent: booking id=%d → user_id=%d", b.id, b.user_id)
-            # Auto-delete after 15 minutes
             asyncio.ensure_future(_auto_delete(bot, b.user_id, sent.message_id, 5 * 60))
+            PENDING_NOTIFS.setdefault(b.user_id, []).append(sent.message_id)
+            try:
+                db.save_notification(b.user_id, b.user_id, sent.message_id)
+            except Exception:
+                pass
         except TelegramError as exc:
             logger.warning("Personal reminder failed user_id=%d: %s", b.user_id, exc)
             continue
 
-        # ── 2. Heads-up to ALL other users ───────────────────────────────
         for uid, user_lang in user_langs.items():
             if uid == b.user_id:
                 continue
-
             day_label_u = _day_label(b.date, user_lang)
             headsup_msg = (
                 f"📢 {get_text(user_lang, 'reminder_headsup', minutes=REMINDER_MINUTES_BEFORE)}\n\n"
@@ -121,64 +127,106 @@ async def _send_reminders(bot: Bot) -> None:
                 f"📋 {b.title}\n"
                 f"👤 {b.display_user}"
             )
+            await _send_with_dismiss(bot, uid, headsup_msg, user_lang)
 
-            headsup_kb = InlineKeyboardMarkup([[
-                InlineKeyboardButton(
-                    get_text(user_lang, "btn_dismiss"),
-                    callback_data="notif_dismiss"
-                )
-            ]])
-
-            try:
-                sent = await bot.send_message(
-                    chat_id      = uid,
-                    text         = headsup_msg,
-                    reply_markup = headsup_kb,
-                )
-                # Auto-delete after 15 minutes
-                asyncio.ensure_future(_auto_delete(bot, uid, sent.message_id, 5 * 60))
-                PENDING_NOTIFS.setdefault(uid, []).append(sent.message_id)
-            except TelegramError as exc:
-                logger.warning("Heads-up failed user_id=%d: %s", uid, exc)
-
-        # ── 3. Group chat ─────────────────────────────────────────────────
         if GROUP_CHAT_ID:
-            try:
-                day_label_en = _day_label(b.date, "en")
-                sent = await bot.send_message(
-                    chat_id = GROUP_CHAT_ID,
-                    text    = (
-                        f"📢 Office in {REMINDER_MINUTES_BEFORE} min\n\n"
-                        f"📅 {day_label_en}\n"
-                        f"🕐 {b.start_time} – {b.end_time}\n"
-                        f"📋 {b.title}\n"
-                        f"👤 {b.display_user}"
-                    ),
-                    reply_markup = InlineKeyboardMarkup([[
-                        InlineKeyboardButton(
-                            get_text("en", "btn_dismiss"),
-                            callback_data="notif_dismiss"
-                        )
-                    ]]),
-                )
-                asyncio.ensure_future(_auto_delete(bot, GROUP_CHAT_ID, sent.message_id, 5 * 60))
-            except TelegramError as exc:
-                logger.warning("Group chat reminder failed: %s", exc)
+            day_label_en = _day_label(b.date, "en")
+            group_msg = (
+                f"📢 Office in {REMINDER_MINUTES_BEFORE} min\n\n"
+                f"📅 {day_label_en}\n"
+                f"🕐 {b.start_time} – {b.end_time}\n"
+                f"📋 {b.title}\n"
+                f"👤 {b.display_user}"
+            )
+            await _send_with_dismiss(bot, GROUP_CHAT_ID, group_msg, "en")
+
+
+# ── Special event reminders ───────────────────────────────────────────────────
+
+def _get_event_start_date(event_date: str) -> str:
+    return event_date.replace(" ", "").split("–")[0].strip()
+
+
+def _event_reminder_sent(event_id: int) -> bool:
+    try:
+        with db._connect() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM event_reminder_sent WHERE event_id = ?", (event_id,)
+            ).fetchone()
+        return row is not None
+    except Exception:
+        return False
+
+
+def _mark_event_reminder_sent(event_id: int) -> None:
+    try:
+        with db._connect() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO event_reminder_sent (event_id, sent_at) VALUES (?, ?)",
+                (event_id, datetime.now(YEREVAN).isoformat())
+            )
+    except Exception as e:
+        logger.warning("Could not mark event reminder sent: %s", e)
+
+
+async def _send_event_reminders(bot: Bot) -> None:
+    """Send 24-hour-before reminders for special events."""
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+
+    try:
+        events = db.get_all_special_events()
+    except Exception:
+        return
+
+    events_tomorrow = [
+        ev for ev in events
+        if _get_event_start_date(ev["event_date"]) == tomorrow
+    ]
+
+    if not events_tomorrow:
+        return
+
+    user_langs = _get_all_user_langs()
+
+    for ev in events_tomorrow:
+        if _event_reminder_sent(ev["id"]):
+            continue
+
+        logger.info("Sending 24h reminder for special event id=%d: %s", ev["id"], ev["title"])
+
+        for uid, lang in user_langs.items():
+            msg = (
+                f"🎉 {get_text(lang, 'event_reminder_title')}\n\n"
+                f"📌 {ev['title']}\n"
+                f"📅 {ev['event_date']}"
+            )
+            if ev.get("location"):
+                msg += f"\n📍 {ev['location']}"
+            if ev.get("description"):
+                msg += f"\n📝 {ev['description']}"
+
+            await _send_with_dismiss(bot, uid, msg, lang)
+
+        _mark_event_reminder_sent(ev["id"])
+
+
+# ── Scheduler setup ───────────────────────────────────────────────────────────
+
+async def _run_all_reminders(bot: Bot) -> None:
+    await _send_reminders(bot)
+    await _send_event_reminders(bot)
 
 
 def start_scheduler(bot: Bot) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone=YEREVAN)
     scheduler.add_job(
-        _send_reminders,
+        _run_all_reminders,
         trigger          = "interval",
         minutes          = 1,
         args             = [bot],
-        id               = "reminder_job",
+        id               = "_send_reminders",
         replace_existing = True,
     )
     scheduler.start()
-    logger.info(
-        "Reminder scheduler started (Asia/Yerevan, fires %d min before each booking)",
-        REMINDER_MINUTES_BEFORE,
-    )
+    logger.info("Reminder scheduler started (Asia/Yerevan, fires 60 min before each booking)")
     return scheduler
