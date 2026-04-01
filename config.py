@@ -38,8 +38,8 @@ ADMIN_IDS: list[int] = [
 # ── ConversationHandler states ────────────────────────────────────────────────
 (
     STATE_PICK_DATE,
-    STATE_PICK_HOUR,
-    STATE_PICK_DURATION,
+    STATE_PICK_START,
+    STATE_PICK_END,
     STATE_ENTER_TITLE,
     STATE_CONFIRM,
     STATE_EDIT_PICK_FIELD,
