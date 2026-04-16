@@ -16,11 +16,12 @@ from telegram.ext import (
 )
 
 from config import (
-    ADMIN_IDS, GROUP_CHAT_ID, MAX_DURATION_HOURS, MONTH_SHORT,
+    ADMIN_IDS, GROUP_CHAT_ID, MAX_DURATION_HOURS,
     OFFICE_CLOSE, OFFICE_OPEN,
     STATE_PICK_DATE, STATE_PICK_START, STATE_PICK_END,
     STATE_ENTER_TITLE, STATE_CONFIRM,
 )
+from translations import MONTH_SHORT
 from services.booking_service import create_booking
 from translations import WEEKDAY_HEADERS, get_text
 from scheduler.log_bot import log_booking
@@ -494,6 +495,38 @@ async def start_page(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup=kb,
     )
     return STATE_PICK_START
+
+
+
+async def pick_hour_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """User tapped a start hour - show minute options for that hour."""
+    query       = update.callback_query
+    await query.answer()
+    lang        = _lang(context)
+    hour        = int(query.data.split(":")[1])
+    chosen_date = context.user_data["date"]
+    context.user_data["pending_hour"] = hour
+    kb = _kb_minutes(hour, chosen_date, lang)
+    await query.edit_message_text(
+        get_text(lang, "choose_start_time") + " " + str(hour).zfill(2) + ":__",
+        reply_markup=kb,
+    )
+    return STATE_PICK_START
+
+
+async def back_to_hours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Back from minute picker to hour grid."""
+    query       = update.callback_query
+    await query.answer()
+    lang        = _lang(context)
+    chosen_date = context.user_data["date"]
+    kb = _kb_hours(chosen_date, lang)
+    await query.edit_message_text(
+        get_text(lang, "choose_start_time"),
+        reply_markup=kb,
+    )
+    return STATE_PICK_START
+
 
 
 async def pick_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
