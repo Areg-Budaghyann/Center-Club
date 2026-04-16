@@ -74,7 +74,30 @@ def _kb_month(lang, cb_prefix="ev_month", back_cb=None):
     return InlineKeyboardMarkup(rows)
 
 
-def _kb_day(year, month, lang, cb_prefix, back_cb, min_date=None):
+def _kb_month_extended(lang, cb_prefix="ev_month", back_cb=None):
+    """Month picker that includes next year's months too."""
+    today = date.today()
+    rows, row = [], []
+    # Current year remaining months
+    for m in range(today.month, 13):
+        label = MONTH_SHORT[lang][m - 1]
+        row.append(InlineKeyboardButton(label, callback_data=f"{cb_prefix}:{today.year}:{m}"))
+        if len(row) == 3:
+            rows.append(row); row = []
+    # Next year months
+    for m in range(1, today.month):
+        label = MONTH_SHORT[lang][m - 1] + f" {today.year + 1}"
+        row.append(InlineKeyboardButton(label, callback_data=f"{cb_prefix}:{today.year + 1}:{m}"))
+        if len(row) == 3:
+            rows.append(row); row = []
+    if row:
+        rows.append(row)
+    rows += _cancel_row(back_cb)
+    return InlineKeyboardMarkup(rows)
+
+
+def _kb_day(year, month, lang, cb_prefix, back_cb, min_date=None,
+            next_month_cb=None, prev_month_cb=None):
     today = date.today()
     min_d = min_date or today
     month_label = f"{MONTH_SHORT[lang][month-1]} {year}"
@@ -93,8 +116,26 @@ def _kb_day(year, month, lang, cb_prefix, back_cb, min_date=None):
                     label = f"[{day_num}]" if d == today else str(day_num)
                     row.append(InlineKeyboardButton(label, callback_data=f"{cb_prefix}:{d.isoformat()}"))
         rows.append(row)
+
+    # Month navigation
+    nav = []
+    if prev_month_cb:
+        nav.append(InlineKeyboardButton("← Prev month", callback_data=prev_month_cb))
+    if next_month_cb:
+        nav.append(InlineKeyboardButton("Next month →", callback_data=next_month_cb))
+    if nav:
+        rows.append(nav)
+
     rows += _cancel_row(back_cb)
     return InlineKeyboardMarkup(rows), month_label
+
+
+def _next_month(year, month):
+    return (year, month + 1) if month < 12 else (year + 1, 1)
+
+
+def _prev_month(year, month):
+    return (year, month - 1) if month > 1 else (year - 1, 12)
 
 
 def _kb_text_input(back_cb, skip=False):
@@ -136,9 +177,8 @@ def _events_view(lang: str, user_id: int) -> tuple[str, InlineKeyboardMarkup]:
     rows = []
 
     for e in events:
-        text += f"\n            \n{_event_block(e)}\n"
+        text += f"\n━━━━━━━━━━━━━━━━━━━━━━\n{_event_block(e)}\n"
 
-    # Admin: management buttons at the bottom
     if is_admin:
         rows.append([InlineKeyboardButton(get_text(lang, "ev_add_btn"), callback_data="ev_add")])
         rows.append([InlineKeyboardButton(get_text(lang, "ev_edit_btn"), callback_data="ev_edit_list")])
@@ -186,8 +226,6 @@ async def ev_delconfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await query.answer()
     event_id = int(query.data.split(":")[1])
     db.delete_special_event(event_id)
-
-    # Refresh events list
     lang = _lang(context)
     text, kb = _events_view(lang, update.effective_user.id)
     await query.edit_message_text(text, reply_markup=kb)
@@ -195,9 +233,7 @@ async def ev_delconfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 # ── Edit event ────────────────────────────────────────────────────────────────
 
-
 async def ev_edit_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Show list of events to choose one for editing."""
     query = update.callback_query
     lang  = _lang(context)
     if not _is_admin(update.effective_user.id):
@@ -224,7 +260,6 @@ async def ev_edit_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def ev_del_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Show list of events to choose one for deletion."""
     query = update.callback_query
     lang  = _lang(context)
     if not _is_admin(update.effective_user.id):
@@ -269,11 +304,11 @@ async def ev_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["ev_edit_data"] = dict(ev)
 
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton(get_text(lang, "ev_field_date"), callback_data="eve_field:date")],
+        [InlineKeyboardButton(get_text(lang, "ev_field_date"),  callback_data="eve_field:date")],
         [InlineKeyboardButton(get_text(lang, "ev_field_title"), callback_data="eve_field:title")],
-        [InlineKeyboardButton(get_text(lang, "ev_field_loc"), callback_data="eve_field:location")],
-        [InlineKeyboardButton(get_text(lang, "ev_field_desc"), callback_data="eve_field:desc")],
-        [InlineKeyboardButton("← Back",         callback_data="events")],
+        [InlineKeyboardButton(get_text(lang, "ev_field_loc"),   callback_data="eve_field:location")],
+        [InlineKeyboardButton(get_text(lang, "ev_field_desc"),  callback_data="eve_field:desc")],
+        [InlineKeyboardButton("← Back", callback_data="events")],
     ])
     await query.edit_message_text(
         get_text(lang, "ev_edit_menu") + "\n\n" + _event_block(ev),
@@ -297,7 +332,6 @@ async def eve_field(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         )
         return SE_DATE_MONTH
 
-    # Text fields
     labels = {"title": "📌 Title", "location": "📍 Location", "desc": "📝 Description"}
     current = ev.get({"title":"title","location":"location","desc":"description"}[field], "")
     kb = _kb_text_input(back_cb="eve_back_menu", skip=(field=="desc"))
@@ -314,11 +348,11 @@ async def eve_back_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     lang = _lang(context)
     ev = context.user_data.get("ev_edit_data", {})
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton(get_text(lang, "ev_field_date"), callback_data="eve_field:date")],
+        [InlineKeyboardButton(get_text(lang, "ev_field_date"),  callback_data="eve_field:date")],
         [InlineKeyboardButton(get_text(lang, "ev_field_title"), callback_data="eve_field:title")],
-        [InlineKeyboardButton(get_text(lang, "ev_field_loc"), callback_data="eve_field:location")],
-        [InlineKeyboardButton(get_text(lang, "ev_field_desc"), callback_data="eve_field:desc")],
-        [InlineKeyboardButton("← Back",         callback_data="events")],
+        [InlineKeyboardButton(get_text(lang, "ev_field_loc"),   callback_data="eve_field:location")],
+        [InlineKeyboardButton(get_text(lang, "ev_field_desc"),  callback_data="eve_field:desc")],
+        [InlineKeyboardButton("← Back", callback_data="events")],
     ])
     await query.edit_message_text(
         get_text(lang, "ev_edit_menu") + "\n\n" + _event_block(ev),
@@ -327,7 +361,6 @@ async def eve_back_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     return SE_MENU
 
 
-# Edit date flow
 async def eve_month(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
@@ -352,9 +385,40 @@ async def eve_start_day(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     context.user_data["ev_date_start"] = start
     year  = context.user_data["ev_year"]
     month = context.user_data["ev_month"]
+    context.user_data["ev_end_year"]  = year
+    context.user_data["ev_end_month"] = month
     from datetime import date as _date
+    ny, nm = _next_month(year, month)
     kb, month_label = _kb_day(year, month, lang, "eve_end_day", "eve_back_start_day",
-                               min_date=_date.fromisoformat(start))
+                               min_date=_date.fromisoformat(start),
+                               next_month_cb=f"eve_end_nav:{ny}:{nm}")
+    await query.edit_message_text(
+        f"📅 {month_label}  ▶ Start: {start}\n\nChoose END day:",
+        reply_markup=kb,
+    )
+    return SE_DATE_END
+
+
+async def eve_end_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Navigate months in edit-event end day picker."""
+    query = update.callback_query
+    await query.answer()
+    lang = _lang(context)
+    _, year_s, month_s = query.data.split(":")
+    year, month = int(year_s), int(month_s)
+    context.user_data["ev_end_year"]  = year
+    context.user_data["ev_end_month"] = month
+    start = context.user_data["ev_date_start"]
+    from datetime import date as _date
+    ny, nm = _next_month(year, month)
+    py, pm = _prev_month(year, month)
+    start_year  = context.user_data["ev_year"]
+    start_month = context.user_data["ev_month"]
+    prev_cb = f"eve_end_nav:{py}:{pm}" if (year, month) > (start_year, start_month) else None
+    kb, month_label = _kb_day(year, month, lang, "eve_end_day", "eve_back_start_day",
+                               min_date=_date.fromisoformat(start),
+                               next_month_cb=f"eve_end_nav:{ny}:{nm}",
+                               prev_month_cb=prev_cb)
     await query.edit_message_text(
         f"📅 {month_label}  ▶ Start: {start}\n\nChoose END day:",
         reply_markup=kb,
@@ -395,7 +459,6 @@ async def eve_end_day(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     return ConversationHandler.END
 
 
-# Edit text field
 async def eve_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     field   = context.user_data.get("ev_edit_field")
     value   = update.message.text.strip()
@@ -443,9 +506,7 @@ async def eve_skip_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 # ── Add event flow ────────────────────────────────────────────────────────────
 
-
 async def ev_add_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Admin tapped ➕ Add event button — start add flow."""
     query = update.callback_query
     if not _is_admin(update.effective_user.id):
         await query.answer("⛔ Admin only", show_alert=True)
@@ -453,16 +514,14 @@ async def ev_add_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await query.answer()
     lang = _lang(context)
 
-    # Clear previous event data but keep lang
     for key in [k for k in context.user_data if k.startswith("ev_")]:
         del context.user_data[key]
 
-    # Store msg_id so we can edit in place
     context.user_data["ev_msg_id"] = query.message.message_id
 
     await query.edit_message_text(
         "📅 Step 1 — Choose month:",
-        reply_markup=_kb_month(lang),
+        reply_markup=_kb_month_extended(lang),
     )
     return S_MONTH
 
@@ -483,7 +542,7 @@ async def addevent_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     msg = await update.effective_chat.send_message(
         "📅 Step 1 — Choose month:",
-        reply_markup=_kb_month(lang),
+        reply_markup=_kb_month_extended(lang),
     )
     context.user_data["ev_msg_id"] = msg.message_id
     return S_MONTH
@@ -498,7 +557,10 @@ async def ev_pick_month(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     context.user_data["ev_year"]  = year
     context.user_data["ev_month"] = month
     kb, month_label = _kb_day(year, month, lang, "ev_start_day", None)
-    await query.edit_message_text(f"📅 {month_label}\n\nStep 2 — Choose START day:", reply_markup=kb)
+    await query.edit_message_text(
+        f"📅 {month_label}\n\nStep 2 — Choose START day:",
+        reply_markup=kb,
+    )
     return S_START_DAY
 
 
@@ -510,9 +572,42 @@ async def ev_pick_start_day(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     context.user_data["ev_date_start"] = start
     year  = context.user_data["ev_year"]
     month = context.user_data["ev_month"]
+    # Initialize end month same as start month
+    context.user_data["ev_end_year"]  = year
+    context.user_data["ev_end_month"] = month
     from datetime import date as _date
+    ny, nm = _next_month(year, month)
     kb, month_label = _kb_day(year, month, lang, "ev_end_day", "ev_back_to_start",
-                               min_date=_date.fromisoformat(start))
+                               min_date=_date.fromisoformat(start),
+                               next_month_cb=f"ev_end_nav:{ny}:{nm}")
+    await query.edit_message_text(
+        f"📅 {month_label}  ▶ Start: {start}\n\nStep 3 — Choose END day:",
+        reply_markup=kb,
+    )
+    return S_END_DAY
+
+
+async def ev_end_nav(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Navigate months in end day picker."""
+    query = update.callback_query
+    await query.answer()
+    lang = _lang(context)
+    _, year_s, month_s = query.data.split(":")
+    year, month = int(year_s), int(month_s)
+    context.user_data["ev_end_year"]  = year
+    context.user_data["ev_end_month"] = month
+    start = context.user_data["ev_date_start"]
+    from datetime import date as _date
+    ny, nm = _next_month(year, month)
+    py, pm = _prev_month(year, month)
+    # Don't go before start month
+    start_year  = context.user_data["ev_year"]
+    start_month = context.user_data["ev_month"]
+    prev_cb = f"ev_end_nav:{py}:{pm}" if (year, month) > (start_year, start_month) else None
+    kb, month_label = _kb_day(year, month, lang, "ev_end_day", "ev_back_to_start",
+                               min_date=_date.fromisoformat(start),
+                               next_month_cb=f"ev_end_nav:{ny}:{nm}",
+                               prev_month_cb=prev_cb)
     await query.edit_message_text(
         f"📅 {month_label}  ▶ Start: {start}\n\nStep 3 — Choose END day:",
         reply_markup=kb,
@@ -527,7 +622,10 @@ async def ev_back_to_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     year  = context.user_data["ev_year"]
     month = context.user_data["ev_month"]
     kb, month_label = _kb_day(year, month, lang, "ev_start_day", None)
-    await query.edit_message_text(f"📅 {month_label}\n\nStep 2 — Choose START day:", reply_markup=kb)
+    await query.edit_message_text(
+        f"📅 {month_label}\n\nStep 2 — Choose START day:",
+        reply_markup=kb,
+    )
     return S_START_DAY
 
 
@@ -543,7 +641,10 @@ async def ev_pick_end_day(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     date_range = start if start == end else f"{start} – {end}"
     context.user_data["ev_date"] = date_range
     kb = _kb_text_input(back_cb="ev_back_to_end")
-    await query.edit_message_text(f"📅 {date_range}\n\n✏️ Step 4 — Enter event title:", reply_markup=kb)
+    await query.edit_message_text(
+        f"📅 {date_range}\n\n✏️ Step 4 — Enter event title:",
+        reply_markup=kb,
+    )
     return S_TITLE
 
 
@@ -551,12 +652,19 @@ async def ev_back_to_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     query = update.callback_query
     await query.answer()
     lang  = _lang(context)
-    year  = context.user_data["ev_year"]
-    month = context.user_data["ev_month"]
+    year  = context.user_data.get("ev_end_year", context.user_data["ev_year"])
+    month = context.user_data.get("ev_end_month", context.user_data["ev_month"])
     start = context.user_data["ev_date_start"]
     from datetime import date as _date
+    ny, nm = _next_month(year, month)
+    py, pm = _prev_month(year, month)
+    start_year  = context.user_data["ev_year"]
+    start_month = context.user_data["ev_month"]
+    prev_cb = f"ev_end_nav:{py}:{pm}" if (year, month) > (start_year, start_month) else None
     kb, month_label = _kb_day(year, month, lang, "ev_end_day", "ev_back_to_start",
-                               min_date=_date.fromisoformat(start))
+                               min_date=_date.fromisoformat(start),
+                               next_month_cb=f"ev_end_nav:{ny}:{nm}",
+                               prev_month_cb=prev_cb)
     await query.edit_message_text(
         f"📅 {month_label}  ▶ Start: {start}\n\nStep 3 — Choose END day:",
         reply_markup=kb,
@@ -582,7 +690,8 @@ async def ev_enter_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await context.bot.edit_message_text(
             chat_id=update.effective_chat.id, message_id=msg_id, text=text, reply_markup=kb)
     except Exception:
-        msg = await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=kb)
+        msg = await context.bot.send_message(
+            chat_id=update.effective_chat.id, text=text, reply_markup=kb)
         context.user_data["ev_msg_id"] = msg.message_id
     return S_DESC
 
@@ -590,15 +699,16 @@ async def ev_enter_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def ev_back_to_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-    lang       = _lang(context)
     date_range = context.user_data["ev_date"]
     kb = _kb_text_input(back_cb="ev_back_to_end")
-    await query.edit_message_text(f"📅 {date_range}\n\n✏️ Step 4 — Enter event title:", reply_markup=kb)
+    await query.edit_message_text(
+        f"📅 {date_range}\n\n✏️ Step 4 — Enter event title:",
+        reply_markup=kb,
+    )
     return S_TITLE
 
 
 async def ev_enter_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    lang = _lang(context)
     context.user_data["ev_desc"] = update.message.text.strip()
     try:
         await update.message.delete()
@@ -610,7 +720,6 @@ async def ev_enter_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 async def ev_skip_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-    lang = _lang(context)
     context.user_data["ev_desc"] = ""
     return await _show_location_step(query.message.chat_id, context)
 
@@ -633,7 +742,6 @@ async def _show_location_step(chat_id, context):
 async def ev_back_to_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-    lang       = _lang(context)
     date_range = context.user_data["ev_date"]
     title      = context.user_data["ev_title"]
     kb = _kb_text_input(back_cb="ev_back_to_title", skip=True)
@@ -666,9 +774,11 @@ async def ev_enter_location(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     ]])
     try:
         await context.bot.edit_message_text(
-            chat_id=update.effective_chat.id, message_id=msg_id, text=preview, reply_markup=kb)
+            chat_id=update.effective_chat.id, message_id=msg_id,
+            text=preview, reply_markup=kb)
     except Exception:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=preview, reply_markup=kb)
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id, text=preview, reply_markup=kb)
     context.user_data["ev_ready"] = True
     return S_CONFIRM
 
@@ -676,10 +786,10 @@ async def ev_enter_location(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def ev_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-    lang     = _lang(context)   # ← must be before any get_text call
-    user_id  = update.effective_user.id
-    chat_id  = query.message.chat_id
-    msg_id   = query.message.message_id
+    lang    = _lang(context)
+    user_id = update.effective_user.id
+    chat_id = query.message.chat_id
+    msg_id  = query.message.message_id
 
     event_id = db.create_special_event(
         title       = context.user_data["ev_title"],
@@ -690,11 +800,9 @@ async def ev_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
     logger.info("Special event created id=%d", event_id)
 
-    # Clear state before any async work
     context.user_data.clear()
     context.user_data["lang"] = lang
 
-    # Edit message to show success, then after 2s replace with events list
     await query.edit_message_text(get_text(lang, "ev_saved"))
 
     async def _finish():
@@ -721,7 +829,6 @@ async def ev_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     if update.callback_query:
         await update.callback_query.answer()
-        # Restore events list — never delete the message (it may be the menu)
         try:
             text, kb = _events_view(lang, update.effective_user.id)
             await update.callback_query.edit_message_text(text, reply_markup=kb)
@@ -740,8 +847,6 @@ async def ev_noop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return None
 
 
-# ── /delevents command (legacy) ───────────────────────────────────────────────
-
 async def delevents_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_admin(update.effective_user.id):
         await update.message.reply_text("⛔ Admin only."); return
@@ -757,16 +862,12 @@ async def delevents_start(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # ── Registration ──────────────────────────────────────────────────────────────
 
 def register(application: Application) -> None:
-    # View events
     application.add_handler(CallbackQueryHandler(events_callback, pattern="^events$"))
-
-    # Delete flow
     application.add_handler(CallbackQueryHandler(ev_delask,     pattern=r"^ev_delask:\d+$"))
     application.add_handler(CallbackQueryHandler(ev_delconfirm, pattern=r"^ev_delconfirm:\d+$"))
     application.add_handler(CallbackQueryHandler(ev_del_list,   pattern="^ev_del_list$"))
-    application.add_handler(CallbackQueryHandler(ev_edit_list, pattern="^ev_edit_list$"))
+    application.add_handler(CallbackQueryHandler(ev_edit_list,  pattern="^ev_edit_list$"))
 
-    # Edit conversation
     edit_conv = ConversationHandler(
         entry_points=[
             CallbackQueryHandler(ev_edit,      pattern=r"^ev_edit:\d+$"),
@@ -779,18 +880,19 @@ def register(application: Application) -> None:
                 CallbackQueryHandler(events_callback, pattern="^events$"),
             ],
             SE_DATE_MONTH: [
-                CallbackQueryHandler(eve_month,    pattern=r"^eve_month:\d+:\d+$"),
+                CallbackQueryHandler(eve_month,     pattern=r"^eve_month:\d+:\d+$"),
                 CallbackQueryHandler(eve_back_menu, pattern="^eve_back_menu$"),
             ],
             SE_DATE_START: [
-                CallbackQueryHandler(eve_start_day,      pattern=r"^eve_start_day:\d{4}-\d{2}-\d{2}$"),
-                CallbackQueryHandler(eve_back_menu,      pattern="^eve_back_menu$"),
-                CallbackQueryHandler(ev_noop,             pattern=f"^{NOOP_CB}$"),
+                CallbackQueryHandler(eve_start_day,  pattern=r"^eve_start_day:\d{4}-\d{2}-\d{2}$"),
+                CallbackQueryHandler(eve_back_menu,  pattern="^eve_back_menu$"),
+                CallbackQueryHandler(ev_noop,        pattern=f"^{NOOP_CB}$"),
             ],
             SE_DATE_END: [
-                CallbackQueryHandler(eve_end_day,        pattern=r"^eve_end_day:\d{4}-\d{2}-\d{2}$"),
+                CallbackQueryHandler(eve_end_day,     pattern=r"^eve_end_day:\d{4}-\d{2}-\d{2}$"),
+                CallbackQueryHandler(eve_end_nav,     pattern=r"^eve_end_nav:\d+:\d+$"),
                 CallbackQueryHandler(eve_back_start_day, pattern="^eve_back_start_day$"),
-                CallbackQueryHandler(ev_noop,             pattern=f"^{NOOP_CB}$"),
+                CallbackQueryHandler(ev_noop,         pattern=f"^{NOOP_CB}$"),
             ],
             SE_TEXT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, eve_text),
@@ -806,34 +908,48 @@ def register(application: Application) -> None:
     )
     application.add_handler(edit_conv)
 
-    # Add event conversation
     add_conv = ConversationHandler(
         entry_points=[
             CommandHandler("addevent", addevent_start),
             CallbackQueryHandler(ev_add_callback, pattern="^ev_add$"),
         ],
         states={
-            S_MONTH:     [CallbackQueryHandler(ev_pick_month,    pattern=r"^ev_month:\d+:\d+$"),
-                          CallbackQueryHandler(ev_cancel,        pattern=f"^{CANCEL_CB}$")],
-            S_START_DAY: [CallbackQueryHandler(ev_pick_start_day, pattern=r"^ev_start_day:\d{4}-\d{2}-\d{2}$"),
-                          CallbackQueryHandler(ev_noop,           pattern=f"^{NOOP_CB}$"),
-                          CallbackQueryHandler(ev_cancel,         pattern=f"^{CANCEL_CB}$")],
-            S_END_DAY:   [CallbackQueryHandler(ev_pick_end_day,  pattern=r"^ev_end_day:\d{4}-\d{2}-\d{2}$"),
-                          CallbackQueryHandler(ev_back_to_start, pattern="^ev_back_to_start$"),
-                          CallbackQueryHandler(ev_noop,           pattern=f"^{NOOP_CB}$"),
-                          CallbackQueryHandler(ev_cancel,         pattern=f"^{CANCEL_CB}$")],
-            S_TITLE:     [MessageHandler(filters.TEXT & ~filters.COMMAND, ev_enter_title),
-                          CallbackQueryHandler(ev_back_to_end,   pattern="^ev_back_to_end$"),
-                          CallbackQueryHandler(ev_cancel,         pattern=f"^{CANCEL_CB}$")],
-            S_DESC:      [MessageHandler(filters.TEXT & ~filters.COMMAND, ev_enter_desc),
-                          CallbackQueryHandler(ev_skip_desc,     pattern=f"^{SKIP_CB}$"),
-                          CallbackQueryHandler(ev_back_to_title, pattern="^ev_back_to_title$"),
-                          CallbackQueryHandler(ev_cancel,         pattern=f"^{CANCEL_CB}$")],
-            S_LOCATION:  [MessageHandler(filters.TEXT & ~filters.COMMAND, ev_enter_location),
-                          CallbackQueryHandler(ev_back_to_desc,  pattern="^ev_back_to_desc$"),
-                          CallbackQueryHandler(ev_cancel,         pattern=f"^{CANCEL_CB}$")],
-            S_CONFIRM:   [CallbackQueryHandler(ev_save,           pattern="^ev_save$"),
-                          CallbackQueryHandler(ev_cancel,         pattern=f"^{CANCEL_CB}$")],
+            S_MONTH: [
+                CallbackQueryHandler(ev_pick_month, pattern=r"^ev_month:\d+:\d+$"),
+                CallbackQueryHandler(ev_cancel,     pattern=f"^{CANCEL_CB}$"),
+            ],
+            S_START_DAY: [
+                CallbackQueryHandler(ev_pick_start_day, pattern=r"^ev_start_day:\d{4}-\d{2}-\d{2}$"),
+                CallbackQueryHandler(ev_noop,           pattern=f"^{NOOP_CB}$"),
+                CallbackQueryHandler(ev_cancel,         pattern=f"^{CANCEL_CB}$"),
+            ],
+            S_END_DAY: [
+                CallbackQueryHandler(ev_pick_end_day, pattern=r"^ev_end_day:\d{4}-\d{2}-\d{2}$"),
+                CallbackQueryHandler(ev_end_nav,      pattern=r"^ev_end_nav:\d+:\d+$"),
+                CallbackQueryHandler(ev_back_to_start, pattern="^ev_back_to_start$"),
+                CallbackQueryHandler(ev_noop,          pattern=f"^{NOOP_CB}$"),
+                CallbackQueryHandler(ev_cancel,        pattern=f"^{CANCEL_CB}$"),
+            ],
+            S_TITLE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ev_enter_title),
+                CallbackQueryHandler(ev_back_to_end, pattern="^ev_back_to_end$"),
+                CallbackQueryHandler(ev_cancel,      pattern=f"^{CANCEL_CB}$"),
+            ],
+            S_DESC: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ev_enter_desc),
+                CallbackQueryHandler(ev_skip_desc,   pattern=f"^{SKIP_CB}$"),
+                CallbackQueryHandler(ev_back_to_title, pattern="^ev_back_to_title$"),
+                CallbackQueryHandler(ev_cancel,      pattern=f"^{CANCEL_CB}$"),
+            ],
+            S_LOCATION: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, ev_enter_location),
+                CallbackQueryHandler(ev_back_to_desc, pattern="^ev_back_to_desc$"),
+                CallbackQueryHandler(ev_cancel,       pattern=f"^{CANCEL_CB}$"),
+            ],
+            S_CONFIRM: [
+                CallbackQueryHandler(ev_save,   pattern="^ev_save$"),
+                CallbackQueryHandler(ev_cancel, pattern=f"^{CANCEL_CB}$"),
+            ],
         },
         fallbacks=[
             CommandHandler("cancel", ev_cancel),
