@@ -27,9 +27,9 @@ from scheduler.log_bot import log_booking
 
 logger = logging.getLogger(__name__)
 
-# ── Time slot config ──────────────────────────────────────────────────────────
-SLOT_STEP   = 5    # minutes between slots
-PAGE_SIZE   = 24   # slots per page (= 2 hours at 5-min step)
+# ── Time picker config ────────────────────────────────────────────────────────
+MINUTE_STEPS = [0, 15, 30, 45]  # minute options shown after hour is chosen
+
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -56,23 +56,115 @@ def _min_to_time(m: int) -> str:
     return f"{m // 60:02d}:{m % 60:02d}"
 
 
-def _all_slots() -> list[int]:
-    """All valid slot times in minutes from OFFICE_OPEN to OFFICE_CLOSE (exclusive)."""
-    start = OFFICE_OPEN * 60
-    end   = OFFICE_CLOSE * 60
-    return list(range(start, end, SLOT_STEP))
-
-
-def _booked_minutes(chosen_date: str) -> set[int]:
-    """Return set of minute values that are inside any existing booking."""
+def _booked_ranges(chosen_date: str) -> list:
+    """Return list of (start_min, end_min) for existing bookings."""
     import database
-    booked = set()
+    ranges = []
     for b in database.get_bookings_for_date(chosen_date):
-        bs = _time_to_min(b.start_time)
-        be = _time_to_min(b.end_time)
-        for m in range(bs, be, SLOT_STEP):
-            booked.add(m)
-    return booked
+        ranges.append((_time_to_min(b.start_time), _time_to_min(b.end_time)))
+    return ranges
+
+
+def _hour_available(hour: int, chosen_date: str, booked: list) -> bool:
+    """True if any minute in this hour is bookable (not fully booked)."""
+    hour_start = hour * 60
+    hour_end   = hour_start + 60
+    for bs, be in booked:
+        if bs <= hour_start and be >= hour_end:
+            return False  # entire hour blocked
+    return True
+
+
+def _kb_hours(chosen_date: str, lang: str) -> InlineKeyboardMarkup:
+    """Show all 24 hours in a 4-column grid. Lock fully-booked hours."""
+    booked = _booked_ranges(chosen_date)
+    rows, row = [], []
+    for h in range(OFFICE_OPEN, OFFICE_CLOSE):
+        label = f"{h:02d}:xx"
+        if _hour_available(h, chosen_date, booked):
+            row.append(InlineKeyboardButton(label, callback_data=f"hour:{h}"))
+        else:
+            row.append(InlineKeyboardButton("🔒", callback_data="slot_busy"))
+        if len(row) == 4:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append([InlineKeyboardButton(get_text(lang, "btn_back"), callback_data="back_to_date")])
+    rows.append([InlineKeyboardButton(get_text(lang, "btn_cancel"), callback_data="book_cancel")])
+    return InlineKeyboardMarkup(rows)
+
+
+def _kb_minutes(hour: int, chosen_date: str, lang: str) -> InlineKeyboardMarkup:
+    """Show minute options for chosen hour. Lock conflicting minutes."""
+    booked = _booked_ranges(chosen_date)
+    row = []
+    for m in MINUTE_STEPS:
+        slot_min = hour * 60 + m
+        # Check if this start slot is already booked
+        blocked = any(bs <= slot_min < be for bs, be in booked)
+        label = f"{hour:02d}:{m:02d}"
+        if blocked:
+            row.append(InlineKeyboardButton("🔒", callback_data="slot_busy"))
+        else:
+            row.append(InlineKeyboardButton(label, callback_data=f"start:{slot_min}"))
+    rows = [row]
+    rows.append([InlineKeyboardButton(f"← {get_text(lang, 'btn_back')}", callback_data="back_to_hours")])
+    rows.append([InlineKeyboardButton(get_text(lang, "btn_cancel"), callback_data="book_cancel")])
+    return InlineKeyboardMarkup(rows)
+
+
+def _kb_end_hours(chosen_date: str, start_min: int, lang: str) -> InlineKeyboardMarkup:
+    """Hour grid for end time — only shows hours after start."""
+    booked = _booked_ranges(chosen_date)
+    start_hour = start_min // 60
+
+    # Find first blocking booking after start
+    first_block_hour = OFFICE_CLOSE
+    for bs, be in booked:
+        if bs > start_min:
+            first_block_hour = min(first_block_hour, bs // 60)
+
+    rows, row = [], []
+    for h in range(start_hour, OFFICE_CLOSE):
+        label = f"{h:02d}:xx"
+        if h > first_block_hour:
+            row.append(InlineKeyboardButton("🔒", callback_data="slot_busy"))
+        else:
+            row.append(InlineKeyboardButton(label, callback_data=f"end_hour:{h}"))
+        if len(row) == 4:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    if not rows:
+        rows = [[InlineKeyboardButton("—", callback_data="slot_busy")]]
+    rows.append([InlineKeyboardButton(get_text(lang, "btn_back"), callback_data="back_to_start")])
+    rows.append([InlineKeyboardButton(get_text(lang, "btn_cancel"), callback_data="book_cancel")])
+    return InlineKeyboardMarkup(rows)
+
+
+def _kb_end_minutes(hour: int, chosen_date: str, start_min: int, lang: str) -> InlineKeyboardMarkup:
+    """Minute options for end time. Only shows times strictly after start."""
+    booked = _booked_ranges(chosen_date)
+    row = []
+    for m in MINUTE_STEPS:
+        slot_min = hour * 60 + m
+        if slot_min <= start_min:
+            row.append(InlineKeyboardButton("—", callback_data="slot_busy"))
+            continue
+        # Check conflict
+        blocked = any(start_min < be <= slot_min and bs < slot_min for bs, be in booked)
+        label = f"{hour:02d}:{m:02d}"
+        if blocked:
+            row.append(InlineKeyboardButton("🔒", callback_data="slot_busy"))
+        else:
+            row.append(InlineKeyboardButton(label, callback_data=f"end:{slot_min}"))
+    rows = [row]
+    rows.append([InlineKeyboardButton(f"← {get_text(lang, 'btn_back')}", callback_data="back_to_end_hours")])
+    rows.append([InlineKeyboardButton(get_text(lang, "btn_cancel"), callback_data="book_cancel")])
+    return InlineKeyboardMarkup(rows)
+
 
 
 def _has_conflict_range(date_str: str, start_min: int, end_min: int, exclude_id=None):
@@ -191,6 +283,11 @@ def _kb_start_slots(chosen_date: str, page: int, lang: str) -> tuple[InlineKeybo
         nav.append(InlineKeyboardButton("Later →", callback_data=f"start_page:{page + 1}"))
     if nav:
         rows.append(nav)
+
+    # Quick-jump row
+    qj = _quick_jump_row(total_pages, all_slots)
+    if qj:
+        rows.append(qj)
 
     rows.append([InlineKeyboardButton(get_text(lang, "btn_back"), callback_data="back_to_date")])
     rows.append([InlineKeyboardButton(get_text(lang, "btn_cancel"), callback_data="book_cancel")])
@@ -400,30 +497,51 @@ async def start_page(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def pick_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """User selected start time slot."""
-    query = update.callback_query
+    """User selected start minute - show end hour grid."""
+    query       = update.callback_query
     await query.answer()
     lang        = _lang(context)
     start_min   = int(query.data.split(":")[1])
     chosen_date = context.user_data["date"]
     start_time  = _min_to_time(start_min)
-
     context.user_data["start_min"]  = start_min
     context.user_data["start_time"] = start_time
+    kb = _kb_end_hours(chosen_date, start_min, lang)
+    msg = (get_text(lang, "start_label") + ": " + start_time
+           + chr(10) + chr(10) + get_text(lang, "choose_end_time"))
+    await query.edit_message_text(msg, reply_markup=kb)
+    return STATE_PICK_END
 
-    # Default end page: same page as start (or next)
-    all_end = [s for s in _all_slots() if s > start_min]
-    end_page = 0
 
-    context.user_data["end_page"] = end_page
-    kb, header = _kb_end_slots(chosen_date, start_min, end_page, lang)
+async def pick_hour_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """User tapped end hour - show minute options."""
+    query       = update.callback_query
+    await query.answer()
+    lang        = _lang(context)
+    hour        = int(query.data.split(":")[1])
+    chosen_date = context.user_data["date"]
+    start_min   = context.user_data["start_min"]
+    start_time  = context.user_data["start_time"]
+    context.user_data["pending_end_hour"] = hour
+    kb  = _kb_end_minutes(hour, chosen_date, start_min, lang)
+    msg = (get_text(lang, "start_label") + ": " + start_time
+           + chr(10) + f"{hour:02d}:__ - " + get_text(lang, "choose_end_time"))
+    await query.edit_message_text(msg, reply_markup=kb)
+    return STATE_PICK_END
 
-    await query.edit_message_text(
-        f"📅 {chosen_date}\n"
-        f"▶️ {get_text(lang, 'start_label')}: {start_time}\n\n"
-        f"{header}\n\n{get_text(lang, 'choose_end_time')}",
-        reply_markup=kb,
-    )
+
+async def back_to_end_hours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Back from end-minute to end-hour grid."""
+    query       = update.callback_query
+    await query.answer()
+    lang        = _lang(context)
+    chosen_date = context.user_data["date"]
+    start_min   = context.user_data["start_min"]
+    start_time  = context.user_data["start_time"]
+    kb  = _kb_end_hours(chosen_date, start_min, lang)
+    msg = (get_text(lang, "start_label") + ": " + start_time
+           + chr(10) + chr(10) + get_text(lang, "choose_end_time"))
+    await query.edit_message_text(msg, reply_markup=kb)
     return STATE_PICK_END
 
 
@@ -434,22 +552,15 @@ async def slot_busy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def back_to_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Back from end picker to start picker."""
-    query = update.callback_query
+    """Back from end hour grid to start hour grid."""
+    query       = update.callback_query
     await query.answer()
     lang        = _lang(context)
     chosen_date = context.user_data["date"]
-    page        = context.user_data.get("start_page", 0)
-
-    kb, header = _kb_start_slots(chosen_date, page, lang)
-    await query.edit_message_text(
-        f"📅 {chosen_date}\n\n{header}\n\n{get_text(lang, 'choose_start_time')}",
-        reply_markup=kb,
-    )
+    kb = _kb_hours(chosen_date, lang)
+    await query.edit_message_text(get_text(lang, "choose_start_time"), reply_markup=kb)
     return STATE_PICK_START
 
-
-# ── Step 3 — End time ─────────────────────────────────────────────────────────
 
 async def end_page(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Navigate end slot pages."""
@@ -769,6 +880,30 @@ async def _ignore_start_in_flow(update: Update, context: ContextTypes.DEFAULT_TY
     return STATE_PICK_DATE
 
 
+# Quick-jump anchors: label → target hour
+QUICK_JUMPS = [
+    ("🌅", 7),   # Morning
+    ("☀️", 12),  # Noon
+    ("🌆", 17),  # Evening
+    ("🌙", 21),  # Night
+]
+
+
+def _quick_jump_row(total_pages: int, slots: list) -> list:
+    """Row of quick-jump buttons to common time periods."""
+    buttons = []
+    for emoji, hour in QUICK_JUMPS:
+        target_min = hour * 60
+        # Find which page contains this hour
+        for i, slot in enumerate(slots):
+            if slot >= target_min:
+                page = i // PAGE_SIZE
+                buttons.append(InlineKeyboardButton(emoji, callback_data=f"start_page:{page}"))
+                break
+    return buttons
+
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _date_in_event_range(date_str: str, event_date: str) -> bool:
@@ -830,19 +965,21 @@ def register(application: Application) -> None:
                 CallbackQueryHandler(change_lang_in_flow, pattern=r"^lang:(en|ru|hy)$"),
             ],
             STATE_PICK_START: [
-                CallbackQueryHandler(pick_start,     pattern=r"^start:\d+$"),
-                CallbackQueryHandler(start_page,     pattern=r"^start_page:\d+$"),
-                CallbackQueryHandler(slot_busy,      pattern="^slot_busy$"),
-                CallbackQueryHandler(back_to_date,   pattern="^back_to_date$"),
-                CallbackQueryHandler(book_cancel,    pattern="^book_cancel$"),
+                CallbackQueryHandler(pick_hour_start, pattern=r"^hour:\d+$"),
+                CallbackQueryHandler(pick_start,      pattern=r"^start:\d+$"),
+                CallbackQueryHandler(back_to_hours,   pattern="^back_to_hours$"),
+                CallbackQueryHandler(slot_busy,       pattern="^slot_busy$"),
+                CallbackQueryHandler(back_to_date,    pattern="^back_to_date$"),
+                CallbackQueryHandler(book_cancel,     pattern="^book_cancel$"),
                 CallbackQueryHandler(change_lang_in_flow, pattern=r"^lang:(en|ru|hy)$"),
             ],
             STATE_PICK_END: [
-                CallbackQueryHandler(pick_end,       pattern=r"^end:\d+$"),
-                CallbackQueryHandler(end_page,       pattern=r"^end_page:\d+$"),
-                CallbackQueryHandler(slot_busy,      pattern="^slot_busy$"),
-                CallbackQueryHandler(back_to_start,  pattern="^back_to_start$"),
-                CallbackQueryHandler(book_cancel,    pattern="^book_cancel$"),
+                CallbackQueryHandler(pick_hour_end,       pattern=r"^end_hour:\d+$"),
+                CallbackQueryHandler(pick_end,            pattern=r"^end:\d+$"),
+                CallbackQueryHandler(back_to_end_hours,   pattern="^back_to_end_hours$"),
+                CallbackQueryHandler(slot_busy,           pattern="^slot_busy$"),
+                CallbackQueryHandler(back_to_start,       pattern="^back_to_start$"),
+                CallbackQueryHandler(book_cancel,         pattern="^book_cancel$"),
                 CallbackQueryHandler(change_lang_in_flow, pattern=r"^lang:(en|ru|hy)$"),
             ],
             STATE_ENTER_TITLE: [
