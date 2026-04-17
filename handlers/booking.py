@@ -30,6 +30,8 @@ logger = logging.getLogger(__name__)
 
 # ── Time picker config ────────────────────────────────────────────────────────
 MINUTE_STEPS = [0, 15, 30, 45]  # minute options shown after hour is chosen
+SLOT_STEP_MIN = 5               # slot grid step used in paginated pickers
+PAGE_SIZE = 24                  # must be multiple of 4 (keyboard columns)
 
 
 
@@ -55,6 +57,35 @@ def _time_to_min(t: str) -> int:
 def _min_to_time(m: int) -> str:
     """510 → '08:30'"""
     return f"{m // 60:02d}:{m % 60:02d}"
+
+
+def _all_slots() -> list[int]:
+    """
+    Return all possible slot start times in minutes for the current office hours.
+    Example: OFFICE_OPEN=0, OFFICE_CLOSE=24, step=5 -> 0..1435.
+    """
+    start = OFFICE_OPEN * 60
+    end = OFFICE_CLOSE * 60
+    if end <= start:
+        return []
+    return list(range(start, end, SLOT_STEP_MIN))
+
+
+def _booked_minutes(chosen_date: str) -> set[int]:
+    """
+    Return set of slot start minutes (aligned to SLOT_STEP_MIN) that are occupied
+    by existing bookings on chosen_date.
+    """
+    import database
+    booked: set[int] = set()
+    for b in database.get_bookings_for_date(chosen_date):
+        bs = _time_to_min(b.start_time)
+        be = _time_to_min(b.end_time)
+        # Align down to slot boundary; keep end exclusive.
+        bs -= (bs % SLOT_STEP_MIN)
+        for m in range(bs, max(bs, be), SLOT_STEP_MIN):
+            booked.add(m)
+    return booked
 
 
 def _booked_ranges(chosen_date: str) -> list:
@@ -1000,6 +1031,7 @@ def register(application: Application) -> None:
             STATE_PICK_START: [
                 CallbackQueryHandler(pick_hour_start, pattern=r"^hour:\d+$"),
                 CallbackQueryHandler(pick_start,      pattern=r"^start:\d+$"),
+                CallbackQueryHandler(start_page,      pattern=r"^start_page:\d+$"),
                 CallbackQueryHandler(back_to_hours,   pattern="^back_to_hours$"),
                 CallbackQueryHandler(slot_busy,       pattern="^slot_busy$"),
                 CallbackQueryHandler(back_to_date,    pattern="^back_to_date$"),
@@ -1009,6 +1041,7 @@ def register(application: Application) -> None:
             STATE_PICK_END: [
                 CallbackQueryHandler(pick_hour_end,       pattern=r"^end_hour:\d+$"),
                 CallbackQueryHandler(pick_end,            pattern=r"^end:\d+$"),
+                CallbackQueryHandler(end_page,            pattern=r"^end_page:\d+$"),
                 CallbackQueryHandler(back_to_end_hours,   pattern="^back_to_end_hours$"),
                 CallbackQueryHandler(slot_busy,           pattern="^slot_busy$"),
                 CallbackQueryHandler(back_to_start,       pattern="^back_to_start$"),
