@@ -143,6 +143,36 @@ def _next_free_start_suggestions(chosen_date: str, from_min: int, limit: int = 5
     return suggestions
 
 
+async def _typed_error_prompt(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    prompt_key: str,
+    error_text: str,
+) -> None:
+    """
+    Show an error and keep the user in typed-time mode.
+    Prefer editing the existing prompt message (typed_prompt_msg_id).
+    """
+    lang = _lang(context)
+    prompt_id = context.user_data.get("typed_prompt_msg_id")
+    chat_id = update.effective_chat.id if update.effective_chat else None
+    combined = f"{error_text}\n\n{get_text(lang, prompt_key)}"
+
+    if prompt_id and chat_id is not None:
+        try:
+            await context.bot.edit_message_text(chat_id=chat_id, message_id=prompt_id, text=combined)
+            return
+        except Exception:
+            pass
+
+    # Fallback: send as a new message
+    if chat_id is not None:
+        try:
+            await context.bot.send_message(chat_id=chat_id, text=combined)
+        except Exception:
+            pass
+
+
 def _booked_ranges(chosen_date: str) -> list:
     """Return list of (start_min, end_min) for existing bookings."""
     import database
@@ -626,7 +656,12 @@ async def on_typed_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     parsed = _parse_time_to_min(raw)
     if parsed is None:
         if update.message:
-            await update.message.reply_text(get_text(lang, "time_parse_error"))
+            await _typed_error_prompt(
+                update,
+                context,
+                "prompt_type_start" if awaiting == "start" else "prompt_type_end",
+                get_text(lang, "time_parse_error"),
+            )
             try:
                 await update.message.delete()
             except Exception:
@@ -644,7 +679,12 @@ async def on_typed_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         close_s = f"{OFFICE_CLOSE:02d}:00"
         msg = get_text(lang, "time_out_of_range", open=open_s, close=close_s)
         if update.message:
-            await update.message.reply_text(msg)
+            await _typed_error_prompt(
+                update,
+                context,
+                "prompt_type_start" if awaiting == "start" else "prompt_type_end",
+                msg,
+            )
             try:
                 await update.message.delete()
             except Exception:
@@ -677,7 +717,21 @@ async def on_typed_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
                 markup = None
 
             if update.message:
-                await update.message.reply_text(get_text(lang, "slot_taken_alert"), reply_markup=markup)
+                await _typed_error_prompt(
+                    update,
+                    context,
+                    "prompt_type_start",
+                    get_text(lang, "slot_taken_alert"),
+                )
+                if markup and update.effective_chat:
+                    try:
+                        await context.bot.send_message(
+                            chat_id=update.effective_chat.id,
+                            text=get_text(lang, "btn_suggested_times"),
+                            reply_markup=markup,
+                        )
+                    except Exception:
+                        pass
                 try:
                     await update.message.delete()
                 except Exception:
@@ -730,7 +784,7 @@ async def on_typed_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     end_min = normalized
     if end_min <= start_min:
         if update.message:
-            await update.message.reply_text(get_text(lang, "end_before_start_alert"))
+            await _typed_error_prompt(update, context, "prompt_type_end", get_text(lang, "end_before_start_alert"))
             try:
                 await update.message.delete()
             except Exception:
@@ -755,12 +809,28 @@ async def on_typed_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
                 [InlineKeyboardButton(get_text(lang, "btn_back"), callback_data="back_to_end_picker")],
             ])
         if update.message:
-            await update.message.reply_text(
-                get_text(lang, "booking_conflict",
-                         start=conflict.start_time, end=conflict.end_time,
-                         title=conflict.title, user=conflict.username),
-                reply_markup=markup,
+            await _typed_error_prompt(
+                update,
+                context,
+                "prompt_type_end",
+                get_text(
+                    lang,
+                    "booking_conflict",
+                    start=conflict.start_time,
+                    end=conflict.end_time,
+                    title=conflict.title,
+                    user=conflict.username,
+                ),
             )
+            if markup and update.effective_chat:
+                try:
+                    await context.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text=get_text(lang, "btn_suggested_times"),
+                        reply_markup=markup,
+                    )
+                except Exception:
+                    pass
             try:
                 await update.message.delete()
             except Exception:
