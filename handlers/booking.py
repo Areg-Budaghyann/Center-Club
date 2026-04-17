@@ -7,6 +7,7 @@ Flow: Date → Start slot (paginated) → End slot (paginated) → Title → Con
 
 import calendar
 import logging
+import re
 from datetime import date, datetime, timedelta
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -86,6 +87,60 @@ def _booked_minutes(chosen_date: str) -> set[int]:
         for m in range(bs, max(bs, be), SLOT_STEP_MIN):
             booked.add(m)
     return booked
+
+
+def _normalize_minute(m: int, step: int = SLOT_STEP_MIN) -> int:
+    """Round up to the next step boundary (never earlier than user typed)."""
+    if step <= 1:
+        return m
+    r = m % step
+    return m if r == 0 else (m + (step - r))
+
+
+def _parse_time_to_min(text: str) -> int | None:
+    """
+    Parse 'HH:MM' (or 'H:MM') into minutes from midnight.
+    Returns None if format/values invalid.
+    """
+    t = (text or "").strip()
+    m = re.fullmatch(r"(\d{1,2}):(\d{2})", t)
+    if not m:
+        return None
+    hh = int(m.group(1))
+    mm = int(m.group(2))
+    if hh < 0 or hh > 23 or mm < 0 or mm > 59:
+        return None
+    return hh * 60 + mm
+
+
+def _office_open_min() -> int:
+    return OFFICE_OPEN * 60
+
+
+def _office_close_min() -> int:
+    return OFFICE_CLOSE * 60
+
+
+def _within_office(m: int) -> bool:
+    return _office_open_min() <= m < _office_close_min()
+
+
+def _next_free_start_suggestions(chosen_date: str, from_min: int, limit: int = 5) -> list[int]:
+    """
+    Suggest next available start slot minutes (slot-aligned) after from_min.
+    """
+    booked = _booked_minutes(chosen_date)
+    cur = _normalize_minute(from_min, SLOT_STEP_MIN)
+    suggestions: list[int] = []
+    for _ in range(0, 24 * 60 // SLOT_STEP_MIN):
+        if cur >= _office_close_min():
+            break
+        if cur not in booked and _within_office(cur):
+            suggestions.append(cur)
+            if len(suggestions) >= limit:
+                break
+        cur += SLOT_STEP_MIN
+    return suggestions
 
 
 def _booked_ranges(chosen_date: str) -> list:
@@ -321,6 +376,15 @@ def _kb_start_slots(chosen_date: str, page: int, lang: str) -> tuple[InlineKeybo
     if qj:
         rows.append(qj)
 
+    # Presets + typed input
+    preset = []
+    for t in ("10:00", "12:00", "15:00", "18:00", "21:00"):
+        preset.append(InlineKeyboardButton(t, callback_data=f"type_start_preset:{t}"))
+    rows.append(preset[:4])
+    if len(preset) > 4:
+        rows.append(preset[4:])
+    rows.append([InlineKeyboardButton(get_text(lang, "btn_type_start_time"), callback_data="type_start")])
+
     rows.append([InlineKeyboardButton(get_text(lang, "btn_back"), callback_data="back_to_date")])
     rows.append([InlineKeyboardButton(get_text(lang, "btn_cancel"), callback_data="book_cancel")])
     return InlineKeyboardMarkup(rows), header
@@ -373,6 +437,13 @@ def _kb_end_slots(chosen_date: str, start_min: int, page: int, lang: str) -> tup
         nav.append(InlineKeyboardButton("Later →", callback_data=f"end_page:{page + 1}"))
     if nav:
         rows.append(nav)
+
+    # Duration shortcuts (minutes) + typed end time
+    dur_row = []
+    for mins, label in ((30, "30m"), (60, "1h"), (120, "2h"), (180, "3h")):
+        dur_row.append(InlineKeyboardButton(label, callback_data=f"dur:{mins}"))
+    rows.append(dur_row)
+    rows.append([InlineKeyboardButton(get_text(lang, "btn_type_end_time"), callback_data="type_end")])
 
     rows.append([InlineKeyboardButton(get_text(lang, "btn_back"), callback_data="back_to_start")])
     rows.append([InlineKeyboardButton(get_text(lang, "btn_cancel"), callback_data="book_cancel")])
@@ -447,6 +518,7 @@ async def pick_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     lang = _lang(context)
     context.user_data["date"] = chosen_date
     context.user_data["start_page"] = 0
+    context.user_data["_state"] = STATE_PICK_START
 
     # Jump to first available page
     booked = _booked_minutes(chosen_date)
@@ -484,6 +556,256 @@ async def pick_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return STATE_PICK_START
 
 
+async def type_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Ask user to type a start time."""
+    query = update.callback_query
+    await query.answer()
+    lang = _lang(context)
+    context.user_data["awaiting_typed"] = "start"
+    context.user_data["typed_prompt_msg_id"] = query.message.message_id if query.message else None
+    await query.edit_message_text(
+        get_text(lang, "prompt_type_start"),
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(get_text(lang, "btn_back"), callback_data="back_to_start_picker")
+        ], [
+            InlineKeyboardButton(get_text(lang, "btn_cancel"), callback_data="book_cancel")
+        ]]),
+    )
+    return STATE_PICK_START
+
+
+async def back_to_start_picker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Back from typed-start prompt to start slot picker."""
+    query = update.callback_query
+    await query.answer()
+    lang = _lang(context)
+    chosen_date = context.user_data.get("date")
+    page = context.user_data.get("start_page", 0)
+    context.user_data.pop("awaiting_typed", None)
+    if not chosen_date:
+        await query.edit_message_text(get_text(lang, "choose_month"), reply_markup=_kb_month(lang))
+        return STATE_PICK_DATE
+    kb, header = _kb_start_slots(chosen_date, page, lang)
+    await query.edit_message_text(
+        f"📅 {chosen_date}\n\n{header}\n\n{get_text(lang, 'choose_start_time')}",
+        reply_markup=kb,
+    )
+    return STATE_PICK_START
+
+
+async def type_start_preset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Preset typed start time from a button."""
+    query = update.callback_query
+    await query.answer()
+    _, t = query.data.split(":", 1)
+    # Reuse typed start handler by faking message content via user_data
+    context.user_data["awaiting_typed"] = "start"
+    context.user_data["_typed_time_buffer"] = t
+    return await on_typed_time(update, context)
+
+
+async def on_typed_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """
+    Handle typed time while in start/end pick states.
+    Works for both:
+      - normal messages (user types HH:MM)
+      - preset buttons (stores value in _typed_time_buffer)
+    """
+    lang = _lang(context)
+    awaiting = context.user_data.get("awaiting_typed")
+    if awaiting not in {"start", "end"}:
+        return context.user_data.get("_state", STATE_PICK_START) or STATE_PICK_START
+
+    if context.user_data.get("_typed_time_buffer"):
+        raw = context.user_data.pop("_typed_time_buffer")
+    elif update.message and update.message.text:
+        raw = update.message.text
+    else:
+        return context.user_data.get("_state", STATE_PICK_START) or STATE_PICK_START
+
+    parsed = _parse_time_to_min(raw)
+    if parsed is None:
+        if update.message:
+            await update.message.reply_text(get_text(lang, "time_parse_error"))
+            try:
+                await update.message.delete()
+            except Exception:
+                pass
+        else:
+            # callback path
+            q = update.callback_query
+            if q:
+                await q.answer(get_text(lang, "time_parse_error"), show_alert=True)
+        return context.user_data.get("_state", STATE_PICK_START)
+
+    normalized = _normalize_minute(parsed, SLOT_STEP_MIN)
+    if not _within_office(normalized):
+        open_s = f"{OFFICE_OPEN:02d}:00"
+        close_s = f"{OFFICE_CLOSE:02d}:00"
+        msg = get_text(lang, "time_out_of_range", open=open_s, close=close_s)
+        if update.message:
+            await update.message.reply_text(msg)
+            try:
+                await update.message.delete()
+            except Exception:
+                pass
+        else:
+            q = update.callback_query
+            if q:
+                await q.answer(msg, show_alert=True)
+        return context.user_data.get("_state", STATE_PICK_START)
+
+    if awaiting == "start":
+        chosen_date = context.user_data.get("date")
+        if not chosen_date:
+            return STATE_PICK_DATE
+
+        # Reject if slot is already booked (at slot granularity)
+        booked = _booked_minutes(chosen_date)
+        if normalized in booked:
+            sugg = _next_free_start_suggestions(chosen_date, normalized + SLOT_STEP_MIN, limit=5)
+            if sugg:
+                rows = [[InlineKeyboardButton(get_text(lang, "btn_suggested_times"), callback_data="cal_noop")]]
+                row = []
+                for m2 in sugg:
+                    row.append(InlineKeyboardButton(_min_to_time(m2), callback_data=f"start:{m2}"))
+                rows.append(row)
+                rows.append([InlineKeyboardButton(get_text(lang, "btn_type_start_time"), callback_data="type_start")])
+                rows.append([InlineKeyboardButton(get_text(lang, "btn_back"), callback_data="back_to_start_picker")])
+                markup = InlineKeyboardMarkup(rows)
+            else:
+                markup = None
+
+            if update.message:
+                await update.message.reply_text(get_text(lang, "slot_taken_alert"), reply_markup=markup)
+                try:
+                    await update.message.delete()
+                except Exception:
+                    pass
+            else:
+                q = update.callback_query
+                if q:
+                    await q.answer(get_text(lang, "slot_taken_alert"), show_alert=True)
+            return context.user_data.get("_state", STATE_PICK_START)
+
+        context.user_data["start_min"] = normalized
+        context.user_data["start_time"] = _min_to_time(normalized)
+        context.user_data.pop("awaiting_typed", None)
+
+        kb = _kb_end_hours(chosen_date, normalized, lang)
+        msg = (get_text(lang, "start_label") + ": " + context.user_data["start_time"]
+               + chr(10) + chr(10) + get_text(lang, "choose_end_time"))
+
+        # Prefer editing the prompt message if we know it
+        prompt_id = context.user_data.pop("typed_prompt_msg_id", None)
+        if update.message:
+            try:
+                if prompt_id:
+                    await context.bot.edit_message_text(
+                        chat_id=update.effective_chat.id,
+                        message_id=prompt_id,
+                        text=msg,
+                        reply_markup=kb,
+                    )
+                else:
+                    await update.message.reply_text(msg, reply_markup=kb)
+            finally:
+                try:
+                    await update.message.delete()
+                except Exception:
+                    pass
+        else:
+            q = update.callback_query
+            if q:
+                await q.edit_message_text(msg, reply_markup=kb)
+        return STATE_PICK_END
+
+    # awaiting == "end"
+    chosen_date = context.user_data.get("date")
+    start_min = context.user_data.get("start_min")
+    start_time = context.user_data.get("start_time")
+    if not chosen_date or start_min is None or not start_time:
+        return STATE_PICK_START
+
+    end_min = normalized
+    if end_min <= start_min:
+        if update.message:
+            await update.message.reply_text(get_text(lang, "end_before_start_alert"))
+            try:
+                await update.message.delete()
+            except Exception:
+                pass
+        else:
+            q = update.callback_query
+            if q:
+                await q.answer(get_text(lang, "end_before_start_alert"), show_alert=True)
+        return STATE_PICK_END
+
+    conflict = _has_conflict_range(chosen_date, start_min, end_min)
+    if conflict:
+        cap = _time_to_min(conflict.start_time)
+        cap = min(cap, _office_close_min())
+        cap = _normalize_minute(cap, SLOT_STEP_MIN)
+        markup = None
+        if cap > start_min:
+            markup = InlineKeyboardMarkup([
+                [InlineKeyboardButton(get_text(lang, "btn_suggested_times"), callback_data="slot_busy")],
+                [InlineKeyboardButton(_min_to_time(cap), callback_data=f"end:{cap}")],
+                [InlineKeyboardButton(get_text(lang, "btn_type_end_time"), callback_data="type_end")],
+                [InlineKeyboardButton(get_text(lang, "btn_back"), callback_data="back_to_end_picker")],
+            ])
+        if update.message:
+            await update.message.reply_text(
+                get_text(lang, "booking_conflict",
+                         start=conflict.start_time, end=conflict.end_time,
+                         title=conflict.title, user=conflict.username),
+                reply_markup=markup,
+            )
+            try:
+                await update.message.delete()
+            except Exception:
+                pass
+        else:
+            q = update.callback_query
+            if q:
+                await q.answer(get_text(lang, "slot_taken_alert"), show_alert=True)
+        return STATE_PICK_END
+
+    context.user_data.pop("awaiting_typed", None)
+    prompt_id = context.user_data.pop("typed_prompt_msg_id", None)
+    if update.message:
+        try:
+            await update.message.delete()
+        except Exception:
+            pass
+
+        class _Q:  # minimal shim for edit_message_text compatibility
+            def __init__(self, bot, chat_id, message_id):
+                self._bot = bot
+                self._chat_id = chat_id
+                self._message_id = message_id
+            async def answer(self, *args, **kwargs):
+                return None
+            async def edit_message_text(self, text, reply_markup=None):
+                return await self._bot.edit_message_text(
+                    chat_id=self._chat_id, message_id=self._message_id,
+                    text=text, reply_markup=reply_markup,
+                )
+
+        msg_id = prompt_id
+        if not msg_id:
+            sent = await context.bot.send_message(chat_id=update.effective_chat.id, text="...")
+            msg_id = sent.message_id
+
+        q = _Q(context.bot, update.effective_chat.id, msg_id)
+        return await _transition_to_title_from_end(q, context, lang, chosen_date, start_min, start_time, end_min)
+
+    q = update.callback_query
+    if q:
+        return await _transition_to_title_from_end(q, context, lang, chosen_date, start_min, start_time, end_min)
+    return STATE_PICK_END
+
+
 async def back_to_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
@@ -519,6 +841,7 @@ async def start_page(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     page        = int(query.data.split(":")[1])
     chosen_date = context.user_data["date"]
     context.user_data["start_page"] = page
+    context.user_data["_state"] = STATE_PICK_START
 
     kb, header = _kb_start_slots(chosen_date, page, lang)
     await query.edit_message_text(
@@ -570,6 +893,7 @@ async def pick_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     start_time  = _min_to_time(start_min)
     context.user_data["start_min"]  = start_min
     context.user_data["start_time"] = start_time
+    context.user_data["_state"] = STATE_PICK_END
     kb = _kb_end_hours(chosen_date, start_min, lang)
     msg = (get_text(lang, "start_label") + ": " + start_time
            + chr(10) + chr(10) + get_text(lang, "choose_end_time"))
@@ -593,6 +917,70 @@ async def pick_hour_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     await query.edit_message_text(msg, reply_markup=kb)
     return STATE_PICK_END
 
+
+async def type_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Ask user to type an end time."""
+    query = update.callback_query
+    await query.answer()
+    lang = _lang(context)
+    context.user_data["awaiting_typed"] = "end"
+    context.user_data["typed_prompt_msg_id"] = query.message.message_id if query.message else None
+    await query.edit_message_text(
+        get_text(lang, "prompt_type_end"),
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(get_text(lang, "btn_back"), callback_data="back_to_end_picker")
+        ], [
+            InlineKeyboardButton(get_text(lang, "btn_cancel"), callback_data="book_cancel")
+        ]]),
+    )
+    return STATE_PICK_END
+
+
+async def back_to_end_picker(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Back from typed-end prompt to end slot picker."""
+    query = update.callback_query
+    await query.answer()
+    lang = _lang(context)
+    chosen_date = context.user_data.get("date")
+    start_min = context.user_data.get("start_min")
+    start_time = context.user_data.get("start_time")
+    page = context.user_data.get("end_page", 0)
+    context.user_data.pop("awaiting_typed", None)
+    if not chosen_date or start_min is None or not start_time:
+        return STATE_PICK_START
+    kb, header = _kb_end_slots(chosen_date, start_min, page, lang)
+    await query.edit_message_text(
+        f"📅 {chosen_date}\n"
+        f"▶️ {get_text(lang, 'start_label')}: {start_time}\n\n"
+        f"{header}\n\n{get_text(lang, 'choose_end_time')}",
+        reply_markup=kb,
+    )
+    return STATE_PICK_END
+
+
+async def pick_duration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """User selected a duration shortcut (in minutes)."""
+    query = update.callback_query
+    await query.answer()
+    lang = _lang(context)
+    mins = int(query.data.split(":")[1])
+    chosen_date = context.user_data.get("date")
+    start_min = context.user_data.get("start_min")
+    start_time = context.user_data.get("start_time")
+    if not chosen_date or start_min is None or not start_time:
+        return STATE_PICK_START
+
+    end_min = start_min + mins
+    if end_min > _office_close_min():
+        await query.answer(get_text(lang, "time_out_of_range", open=f"{OFFICE_OPEN:02d}:00", close=f"{OFFICE_CLOSE:02d}:00"), show_alert=True)
+        return STATE_PICK_END
+
+    conflict = _has_conflict_range(chosen_date, start_min, end_min)
+    if conflict:
+        await query.answer(get_text(lang, "slot_taken_alert"), show_alert=True)
+        return STATE_PICK_END
+
+    return await _transition_to_title_from_end(query, context, lang, chosen_date, start_min, start_time, end_min)
 
 async def back_to_end_hours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Back from end-minute to end-hour grid."""
@@ -636,6 +1024,7 @@ async def end_page(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     start_min   = context.user_data["start_min"]
     start_time  = context.user_data["start_time"]
     context.user_data["end_page"] = page
+    context.user_data["_state"] = STATE_PICK_END
 
     kb, header = _kb_end_slots(chosen_date, start_min, page, lang)
     await query.edit_message_text(
@@ -657,6 +1046,18 @@ async def pick_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     start_min   = context.user_data["start_min"]
     start_time  = context.user_data["start_time"]
 
+    return await _transition_to_title_from_end(query, context, lang, chosen_date, start_min, start_time, end_min)
+
+
+async def _transition_to_title_from_end(
+    query,
+    context: ContextTypes.DEFAULT_TYPE,
+    lang: str,
+    chosen_date: str,
+    start_min: int,
+    start_time: str,
+    end_min: int,
+) -> int:
     if end_min <= start_min:
         await query.answer(get_text(lang, "end_before_start_alert"), show_alert=True)
         return STATE_PICK_END
@@ -1032,6 +1433,10 @@ def register(application: Application) -> None:
                 CallbackQueryHandler(pick_hour_start, pattern=r"^hour:\d+$"),
                 CallbackQueryHandler(pick_start,      pattern=r"^start:\d+$"),
                 CallbackQueryHandler(start_page,      pattern=r"^start_page:\d+$"),
+                CallbackQueryHandler(type_start,      pattern=r"^type_start$"),
+                CallbackQueryHandler(type_start_preset, pattern=r"^type_start_preset:\d{1,2}:\d{2}$"),
+                CallbackQueryHandler(back_to_start_picker, pattern=r"^back_to_start_picker$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, on_typed_time),
                 CallbackQueryHandler(back_to_hours,   pattern="^back_to_hours$"),
                 CallbackQueryHandler(slot_busy,       pattern="^slot_busy$"),
                 CallbackQueryHandler(back_to_date,    pattern="^back_to_date$"),
@@ -1042,6 +1447,10 @@ def register(application: Application) -> None:
                 CallbackQueryHandler(pick_hour_end,       pattern=r"^end_hour:\d+$"),
                 CallbackQueryHandler(pick_end,            pattern=r"^end:\d+$"),
                 CallbackQueryHandler(end_page,            pattern=r"^end_page:\d+$"),
+                CallbackQueryHandler(pick_duration,       pattern=r"^dur:\d+$"),
+                CallbackQueryHandler(type_end,            pattern=r"^type_end$"),
+                CallbackQueryHandler(back_to_end_picker,  pattern=r"^back_to_end_picker$"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, on_typed_time),
                 CallbackQueryHandler(back_to_end_hours,   pattern="^back_to_end_hours$"),
                 CallbackQueryHandler(slot_busy,           pattern="^slot_busy$"),
                 CallbackQueryHandler(back_to_start,       pattern="^back_to_start$"),
