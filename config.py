@@ -36,25 +36,26 @@ ADMIN_IDS: list[int] = [
 ]
 
 # ── Multi-club configuration ──────────────────────────────────────────────────
-# Maps club_id → {name, env}  where env is the .env variable holding the password.
+# Passwords are loaded from environment variables (set in .env / Render dashboard).
+# Center Club keeps its fixed password; all others read from env.
 CLUBS: dict[str, dict] = {
-    "abovyan":    {"name": "Abovyan",      "password": "Abovyan3.16"},
-    "joyful":     {"name": "Joyful",       "password": "Joyful3.16"},
-    "ararat":     {"name": "Ararat",       "password": "Ararat3.16"},
-    "eghvard":    {"name": "Eghvard",      "password": "Eghvard3.16"},
-    "club36":     {"name": "Club 36",      "password": "Club 363.16"},
-    "davtashen":  {"name": "Davtashen",    "password": "Davtashen3.16"},
-    "mix":        {"name": "Mix",          "password": "Mix3.16"},
-    "kievyan":    {"name": "Kievyan",      "password": "Kievyan3.16"},
-    "monument":   {"name": "Monument",     "password": "Monument3.16"},
-    "shengavit":  {"name": "Shengavit",    "password": "Shengavit3.16"},
-    "hrazdan":    {"name": "Hrazdan",      "password": "Hrazdan3.16"},
-    "avan":       {"name": "Avan",         "password": "Avan3.16"},
-    "unity":      {"name": "Unity",        "password": "Unity3.16"},
-    "kvartall":   {"name": "Kvartall",     "password": "Kvartall3.16"},
-    "revive":     {"name": "Revive",       "password": "Revive3.16"},
+    "abovyan":    {"name": "Abovyan",      "password": os.getenv("CLUB_PASSWORD_ABOVYAN",    "Abovyan3.16")},
+    "joyful":     {"name": "Joyful",       "password": os.getenv("CLUB_PASSWORD_JOYFUL",     "Joyful3.16")},
+    "ararat":     {"name": "Ararat",       "password": os.getenv("CLUB_PASSWORD_ARARAT",     "Ararat3.16")},
+    "eghvard":    {"name": "Eghvard",      "password": os.getenv("CLUB_PASSWORD_EGHVARD",    "Eghvard3.16")},
+    "club36":     {"name": "Club 36",      "password": os.getenv("CLUB_PASSWORD_CLUB36",     "Club 363.16")},
+    "davtashen":  {"name": "Davtashen",    "password": os.getenv("CLUB_PASSWORD_DAVTASHEN",  "Davtashen3.16")},
+    "mix":        {"name": "Mix",          "password": os.getenv("CLUB_PASSWORD_MIX",        "Mix3.16")},
+    "kievyan":    {"name": "Kievyan",      "password": os.getenv("CLUB_PASSWORD_KIEVYAN",    "Kievyan3.16")},
+    "monument":   {"name": "Monument",     "password": os.getenv("CLUB_PASSWORD_MONUMENT",   "Monument3.16")},
+    "shengavit":  {"name": "Shengavit",    "password": os.getenv("CLUB_PASSWORD_SHENGAVIT",  "Shengavit3.16")},
+    "hrazdan":    {"name": "Hrazdan",      "password": os.getenv("CLUB_PASSWORD_HRAZDAN",    "Hrazdan3.16")},
+    "avan":       {"name": "Avan",         "password": os.getenv("CLUB_PASSWORD_AVAN",       "Avan3.16")},
+    "unity":      {"name": "Unity",        "password": os.getenv("CLUB_PASSWORD_UNITY",      "Unity3.16")},
+    "kvartall":   {"name": "Kvartall",     "password": os.getenv("CLUB_PASSWORD_KVARTALL",   "Kvartall3.16")},
+    "revive":     {"name": "Revive",       "password": os.getenv("CLUB_PASSWORD_REVIVE",     "Revive3.16")},
     "centerclub": {"name": "Center Club",  "password": "Center Club3.16"},
-    "stage":      {"name": "Stage",        "password": "Stage3.16"},
+    "stage":      {"name": "Stage",        "password": os.getenv("CLUB_PASSWORD_STAGE",      "Stage3.16")},
 }
 
 
