@@ -1267,8 +1267,9 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     lang     = _lang(context)
     user     = update.effective_user
     username = user.username or user.first_name or str(user.id)
+    club_id  = context.user_data.get("club_id", "")
     import database as _db
-    _db.upsert_user(user.id, username, lang)
+    _db.upsert_user(user.id, username, lang, club_id)
     ud = context.user_data
 
     start_time = ud["start_time"]
@@ -1286,9 +1287,11 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                      title=conflict.title, user=conflict.username),
             reply_markup=_kb_menu(lang),
         )
-        lang = context.user_data.get("lang", "en")
+        lang    = context.user_data.get("lang", "en")
+        club_id = context.user_data.get("club_id", "")
         context.user_data.clear()
-        context.user_data["lang"] = lang
+        context.user_data["lang"]    = lang
+        context.user_data["club_id"] = club_id
         return ConversationHandler.END
 
     # duration in hours for DB (round up to at least 1)
@@ -1299,6 +1302,7 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         title=ud["title"], date=ud["date"],
         start_time=start_time,
         duration=duration_h,
+        club_id=club_id,
     )
 
     if db_conflict:
@@ -1308,9 +1312,11 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                      title=db_conflict.title, user=db_conflict.username),
             reply_markup=_kb_menu(lang),
         )
-        lang = context.user_data.get("lang", "en")
+        lang    = context.user_data.get("lang", "en")
+        club_id = context.user_data.get("club_id", "")
         context.user_data.clear()
-        context.user_data["lang"] = lang
+        context.user_data["lang"]    = lang
+        context.user_data["club_id"] = club_id
         return ConversationHandler.END
 
     await query.edit_message_text(
@@ -1331,7 +1337,7 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         import database as _db2
         from telegram import InlineKeyboardButton as _IKB, InlineKeyboardMarkup as _IKM
         day_name     = _dt.date.fromisoformat(new_booking.date).strftime("%A, %b %d")
-        all_user_ids = _db2.get_all_user_ids()
+        all_user_ids = _db2.get_all_user_ids_for_club(club_id) if club_id else _db2.get_all_user_ids()
         for uid in all_user_ids:
             if uid == user.id:
                 continue
@@ -1370,9 +1376,11 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def book_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-    lang = _lang(context)
+    lang    = _lang(context)
+    club_id = context.user_data.get("club_id", "")
     context.user_data.clear()
-    context.user_data["lang"] = lang
+    context.user_data["lang"]    = lang
+    context.user_data["club_id"] = club_id
 
     from handlers.start import _main_menu_keyboard
     await query.edit_message_text(
