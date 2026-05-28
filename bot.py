@@ -161,7 +161,7 @@ def main() -> None:
     except Exception as e:
         logger.warning("Could not delete webhook: %s", e)
 
-    loop.close()
+    # Do NOT close the loop — PTB's run_polling() reuses it.
 
     import time
     time.sleep(5)
