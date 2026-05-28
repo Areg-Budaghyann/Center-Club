@@ -32,10 +32,15 @@ PENDING_NOTIFS: dict[int, list[int]] = {}
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _get_all_user_langs() -> dict:
+def _get_all_user_langs(club_id: str = "") -> dict:
     try:
         with db._connect() as conn:
-            rows = conn.execute("SELECT user_id, lang FROM users").fetchall()
+            if club_id:
+                rows = conn.execute(
+                    "SELECT user_id, lang FROM users WHERE club_id=?", (club_id,)
+                ).fetchall()
+            else:
+                rows = conn.execute("SELECT user_id, lang FROM users").fetchall()
         return {row["user_id"]: row["lang"] for row in rows}
     except Exception:
         return {}
@@ -85,10 +90,9 @@ async def _send_reminders(bot: Bot) -> None:
     if not bookings:
         return
 
-    user_langs = _get_all_user_langs()
-
     for b in bookings:
-        owner_lang = user_langs.get(b.user_id, "en")
+        club_user_langs = _get_all_user_langs(club_id=b.club_id)
+        owner_lang = club_user_langs.get(b.user_id, "en")
         day_label  = _day_label(b.date, owner_lang)
 
         personal_msg = (
@@ -116,7 +120,7 @@ async def _send_reminders(bot: Bot) -> None:
             logger.warning("Personal reminder failed user_id=%d: %s", b.user_id, exc)
             continue
 
-        for uid, user_lang in user_langs.items():
+        for uid, user_lang in club_user_langs.items():
             if uid == b.user_id:
                 continue
             day_label_u = _day_label(b.date, user_lang)
@@ -186,15 +190,15 @@ async def _send_event_reminders(bot: Bot) -> None:
     if not events_tomorrow:
         return
 
-    user_langs = _get_all_user_langs()
-
     for ev in events_tomorrow:
         if _event_reminder_sent(ev["id"]):
             continue
 
         logger.info("Sending 24h reminder for special event id=%d: %s", ev["id"], ev["title"])
+        ev_club_id = ev.get("club_id", "")
+        ev_user_langs = _get_all_user_langs(club_id=ev_club_id)
 
-        for uid, lang in user_langs.items():
+        for uid, lang in ev_user_langs.items():
             msg = (
                 f"🎉 {get_text(lang, 'event_reminder_title')}\n\n"
                 f"📌 {ev['title']}\n"

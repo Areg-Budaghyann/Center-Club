@@ -11,8 +11,11 @@ Responsibilities:
   5. Run the bot (polling or webhook depending on environment).
 """
 
+import asyncio
 import logging
 import os
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from telegram.ext import Application, MessageHandler, filters
 
@@ -31,7 +34,27 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# In-memory cache of registered user IDs — avoids DB hit on every update
+# ── Health check server (Render.com) ──────────────────────────────────────────
+
+class _HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+    def log_message(self, format, *args):
+        pass  # silence access logs
+
+
+def _start_health_server() -> None:
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), _HealthHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    logger.info("Health check server started on port %d", port)
+
+
+# ── In-memory cache of registered user IDs ────────────────────────────────────
 _registered_users: set = set()
 
 async def _track_user(update, context) -> None:
@@ -40,13 +63,12 @@ async def _track_user(update, context) -> None:
     if not user or user.is_bot:
         return
     if user.id in _registered_users:
-        return  # Already known — skip DB entirely
+        return
     username = user.username or user.first_name or str(user.id)
     existing = database.get_user_lang(user.id)
     if existing is None:
         database.upsert_user(user.id, username, "en")
     else:
-        # Restore lang from DB into user_data if missing
         if not context.user_data.get("lang"):
             context.user_data["lang"] = existing
     _registered_users.add(user.id)
@@ -54,30 +76,30 @@ async def _track_user(update, context) -> None:
 
 def build_application() -> Application:
     """Wire everything together and return the Application."""
-    app = Application.builder().token(BOT_TOKEN).build()
+    app = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .concurrent_updates(True)
+        .build()
+    )
 
-    # Track every user automatically before any handler runs
     from telegram.ext import TypeHandler
     from telegram import Update as TGUpdate
     app.add_handler(TypeHandler(TGUpdate, _track_user), group=-1)
 
-    # Register handlers (order matters — more specific first)
-    events.register(app)        # Special events (registered first — simple callbacks)
-    booking.register(app)       # ConversationHandler for booking flow
-    recurring.register(app)     # Recurring bookings (/recurring command)
-    mybookings.register(app)    # ConversationHandler for edit, simple handlers for list/cancel
-    schedule.register(app)      # Schedule & free-time
-    start.register(app)         # /start + menu + help (catch-all last)
+    events.register(app)
+    booking.register(app)
+    recurring.register(app)
+    mybookings.register(app)
+    schedule.register(app)
+    start.register(app)
 
-    # Auto-delete any text message sent outside of a conversation flow
-    # Uses group=1 so ConversationHandlers (group=0) always get priority
     async def _auto_delete(update, context):
         try:
             await update.message.delete()
         except Exception:
             pass
 
-    # Update notification dismiss handler
     async def _update_notify_dismiss(update, context):
         query = update.callback_query
         await query.answer()
@@ -91,7 +113,6 @@ def build_application() -> Application:
 
     from telegram.ext import MessageHandler as _MH, filters as _f
 
-    # Auto-delete unknown commands (e.g. /something not registered)
     async def _auto_delete_command(update, context):
         try:
             await update.message.delete()
@@ -105,32 +126,49 @@ def build_application() -> Application:
 
 
 def main() -> None:
-    # 1. Prepare database
+    # 1. Health check for Render.com
+    _start_health_server()
+
+    # 2. Prepare database
     database.init_db()
 
-    # 2. Build application
+    # 3. Build application
     app = build_application()
 
-    # 3. Start reminder scheduler
+    # 4. Start reminder scheduler
     start_scheduler(app.bot)
 
-    # 4. Log bot startup to Telegram channel
-    import asyncio
+    # 5. Pre-launch async tasks using a dedicated event loop
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     try:
-        asyncio.get_event_loop().run_until_complete(log_start(app.bot))
+        loop.run_until_complete(log_start(app.bot))
     except Exception:
         pass
 
-    # 4b. Send update notifications if UPDATE_NOTIFY=1
     try:
-        asyncio.get_event_loop().run_until_complete(send_update_notifications(app.bot))
+        loop.run_until_complete(send_update_notifications(app.bot))
     except Exception as e:
         logger.warning("Update notify error: %s", e)
 
-    # 5. Global error handler — sends all unhandled errors to log channel
+    async def _delete_webhook():
+        await app.bot.delete_webhook(drop_pending_updates=True)
+
+    try:
+        loop.run_until_complete(_delete_webhook())
+        logger.info("Webhook deleted, waiting 5s before polling…")
+    except Exception as e:
+        logger.warning("Could not delete webhook: %s", e)
+
+    # Do NOT close the loop — PTB's run_polling() reuses it.
+
+    import time
+    time.sleep(5)
+
+    # 6. Global error handler
     async def _error_handler(update, context) -> None:
         from telegram.error import Conflict, NetworkError
-        # Ignore Conflict errors — expected during Railway restarts
         if isinstance(context.error, (Conflict, NetworkError)):
             logger.warning("Ignored expected error: %s", context.error)
             return
@@ -143,19 +181,6 @@ def main() -> None:
 
     app.add_error_handler(_error_handler)
 
-    # 6. Delete any existing webhook and run polling
-    import asyncio, time
-
-    async def _delete_webhook():
-        await app.bot.delete_webhook(drop_pending_updates=True)
-
-    try:
-        asyncio.get_event_loop().run_until_complete(_delete_webhook())
-        logger.info("Webhook deleted, waiting 5s before polling…")
-    except Exception as e:
-        logger.warning("Could not delete webhook: %s", e)
-
-    time.sleep(5)
     logger.info("Starting polling…")
     app.run_polling(
         drop_pending_updates = True,

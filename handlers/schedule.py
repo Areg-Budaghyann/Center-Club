@@ -24,6 +24,9 @@ from services.schedule_service import (
 def _lang(context) -> str:
     return context.user_data.get("lang", DEFAULT_LANG)
 
+def _club(context) -> str:
+    return context.user_data.get("club_id", "")
+
 
 def _back(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[
@@ -66,15 +69,16 @@ async def schedule_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     offset = int(offset_str)
     today  = date.today()
 
+    club_id = _club(context)
     if period == "week":
         ref  = today + timedelta(weeks=offset)
-        text = build_weekly_schedule(ref, lang)
+        text = build_weekly_schedule(ref, lang, club_id=club_id)
     else:
         y, m = today.year, today.month + offset
         if m > 12:
             m -= 12
             y += 1
-        text = build_monthly_schedule(y, m, lang)
+        text = build_monthly_schedule(y, m, lang, club_id=club_id)
 
     await query.edit_message_text(
         text,
@@ -103,7 +107,7 @@ def _kb_freetime_month(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
-def _kb_freetime_day(year: int, month: int, lang: str) -> tuple[InlineKeyboardMarkup, str]:
+def _kb_freetime_day(year: int, month: int, lang: str, club_id: str = "") -> tuple[InlineKeyboardMarkup, str]:
     """Calendar day grid for free time — same look as booking."""
     today      = date.today()
     month_label = f"{MONTH_SHORT[lang][month - 1]} {year}"
@@ -114,7 +118,7 @@ def _kb_freetime_day(year: int, month: int, lang: str) -> tuple[InlineKeyboardMa
 
     # Get event dates for this month
     import database as _fdb
-    ft_events = _fdb.get_special_events_for_month(year, month)
+    ft_events = _fdb.get_special_events_for_month(year, month, club_id=club_id)
     ft_event_dates = set()
     for ev in ft_events:
         parts = ev["event_date"].replace(" ", "").split("–")
@@ -178,7 +182,7 @@ async def freetime_pick_month(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.user_data["ft_year"]  = year
     context.user_data["ft_month"] = month
 
-    keyboard, month_label = _kb_freetime_day(year, month, lang)
+    keyboard, month_label = _kb_freetime_day(year, month, lang, club_id=_club(context))
     await query.edit_message_text(
         f"📅 {month_label}",
         reply_markup=keyboard,
@@ -203,13 +207,14 @@ async def freetime_pick_day(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     lang = _lang(context)
 
     target_date = date.fromisoformat(query.data.split(":")[1])
+    club_id = _club(context)
 
     # Get free slots
-    free_slots = get_free_slots(target_date)
+    free_slots = get_free_slots(target_date, club_id=club_id)
 
     # Get booked slots
     import database as _db
-    bookings = _db.get_bookings_for_date(target_date.isoformat())
+    bookings = _db.get_bookings_for_date(target_date.isoformat(), club_id=club_id)
 
     month_name = MONTH_SHORT[lang][target_date.month - 1]
     day_str = f"{target_date.day} {month_name}"
@@ -238,7 +243,7 @@ async def freetime_pick_day(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     # Special events section
     import database as _db2
     from services.schedule_service import _date_in_event_range_str
-    day_events = [e for e in _db2.get_all_special_events()
+    day_events = [e for e in _db2.get_all_special_events(club_id=club_id)
                   if _date_in_event_range_str(target_date.isoformat(), e["event_date"])]
     if day_events:
         lines.append("\n🎉 Special events:")
@@ -251,7 +256,7 @@ async def freetime_pick_day(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     year  = context.user_data.get("ft_year")
     month = context.user_data.get("ft_month")
     if year and month:
-        keyboard, _ = _kb_freetime_day(year, month, lang)
+        keyboard, _ = _kb_freetime_day(year, month, lang, club_id=club_id)
     else:
         keyboard = _kb_freetime_month(lang)
 

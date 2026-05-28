@@ -48,9 +48,15 @@ T: dict[str, dict[str, str]] = {
     "en": {
 
         # ── START & MAIN MENU ───────────────────────────────────────────────
-        "start_message":         "Below you can find all the features available in this bot 📋\n\nIf you have any questions, press the “Help” button ℹ️\n\nPlan your time wisely ⏰✨",
+        "start_message":         "Below you can find all the features available in this bot 📋\n\nIf you have any questions, press the \"Help\" button ℹ️\n\nPlan your time wisely ⏰✨",
         "choose_language":       "🌐 Choose language / Выберите язык / Ընտրեք լեզուն",
         "language_changed":      "✅ Language set to English.",
+
+        # ── CLUB AUTH ───────────────────────────────────────────────────────
+        "choose_club":           "👋 Welcome! Please choose your club:",
+        "enter_password":        "🔐 Enter the password for *{club}*:",
+        "wrong_password":        "❌ Wrong password. Please try again.",
+        "event_reminder_title":  "🎉 Reminder: special event tomorrow!",
 
         # ── MAIN MENU BUTTONS ───────────────────────────────────────────────
         "btn_book_office":       "📅 Book club",
@@ -75,6 +81,18 @@ T: dict[str, dict[str, str]] = {
         "choose_month":          "📅Step 1 of 4 — Choose a month:",
         "choose_day":            "📅 *{month}* — choose a day:",
         "choose_time":           "📅 {date}\n\n🕐 Step 2 of 4 — Choose start time:",
+        "choose_start_time":     "🕐 Step 2 of 4 — Choose start time:",
+        "choose_end_time":       "🕐 Choose end time:",
+        "start_label":           "Start",
+        "end_before_start_alert":"End time must be after start time.",
+        "btn_type_start_time":   "⌨️ Type start time",
+        "btn_type_end_time":     "⌨️ Type end time",
+        "btn_suggested_times":   "Suggested times:",
+        "prompt_type_start":     "Type start time as *HH:MM* (example: *18:30*).",
+        "prompt_type_end":       "Type end time as *HH:MM* (example: *20:00*).",
+        "time_parse_error":      "I couldn't understand that time. Please type it as HH:MM (example: 18:30).",
+        "time_out_of_range":     "That time is outside club hours ({open}–{close}).",
+        "typed_time_normalized": "Adjusted to {time} (nearest {step} min).",
         "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ Step 3 of 4 — Choose duration:",
         "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}h\n\n✏️ Step 4 of 4 — Enter event title:\n\n Type the name of your event (e.g. Board Games, Team Meeting)",
         "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}h\n\n✏️ Step 4 of 4 — Enter event title:\n\n Type the name of your event",
@@ -208,7 +226,7 @@ T: dict[str, dict[str, str]] = {
         # ── Upcoming events ──────────────────────────────────────────────
         "events_title": "🎉 Upcoming special events",
         "events_empty": "🎉 No upcoming special events.",
-        "update_notification": "🔔 Update\n\nA new section “Special Events” has been added to the bot 📅\n\nIn this section, you can view special events.\nOnly admins can create, edit, or delete events.\n\nThank you for using the bot 🙌",
+        "update_notification": "🔔 Update\n\nA new section \"Special Events\" has been added to the bot 📅\n\nIn this section, you can view special events.\nOnly admins can create, edit, or delete events.\n\nThank you for using the bot 🙌",
 
         "ev_add_btn":      "➕ Add event",
         "ev_edit_btn":     "✏️ Edit event",
@@ -235,6 +253,12 @@ T: dict[str, dict[str, str]] = {
         "choose_language":       "🌐 Choose language / Выберите язык / Ընտրեք լեզուն",
         "language_changed":      "✅ Язык изменён на Русский.",
 
+        # ── CLUB AUTH ───────────────────────────────────────────────────────
+        "choose_club":           "👋 Добро пожаловать! Пожалуйста, выберите ваш клуб:",
+        "enter_password":        "🔐 Введите пароль для *{club}*:",
+        "wrong_password":        "❌ Неверный пароль. Попробуйте снова.",
+        "event_reminder_title":  "🎉 Напоминание: завтра специальное мероприятие!",
+
         "btn_book_office":       "📅 Забронировать клуб",
         "btn_view_schedule":     "📊 Расписание",
         "btn_my_bookings":       "📌 Мои брони",
@@ -255,6 +279,18 @@ T: dict[str, dict[str, str]] = {
         "choose_month":          "📅 Шаг 1 из 4 — Выберите месяц:",
         "choose_day":            "📅 *{month}* — выберите день:",
         "choose_time":           "📅 {date}\n\n🕐 Шаг 2 из 4 — Выберите время начала:",
+        "choose_start_time":     "🕐 Шаг 2 из 4 — Выберите время начала:",
+        "choose_end_time":       "🕐 Выберите время окончания:",
+        "start_label":           "Начало",
+        "end_before_start_alert":"Время окончания должно быть позже времени начала.",
+        "btn_type_start_time":   "⌨️ Ввести время начала",
+        "btn_type_end_time":     "⌨️ Ввести время окончания",
+        "btn_suggested_times":   "Рекомендуемые варианты:",
+        "prompt_type_start":     "Введите время начала в формате *HH:MM* (например: *18:30*).",
+        "prompt_type_end":       "Введите время окончания в формате *HH:MM* (например: *20:00*).",
+        "time_parse_error":      "Не удалось распознать время. Введите в формате HH:MM (например: 18:30).",
+        "time_out_of_range":     "Это время вне часов работы ({open}–{close}).",
+        "typed_time_normalized": "Округлено до {time} (шаг {step} мин).",
         "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ Шаг 3 из 4 — Выберите длительность:",
         "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ч\n\n✏️ Шаг 4 из 4 — Введите название: \n\nНапример: Настольные игры, Встреча команды",
         "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ч\n\n✏️ Шаг 4 из 4 — Введите название: \n\n_Введите название события_",
@@ -384,6 +420,12 @@ T: dict[str, dict[str, str]] = {
         "choose_language":       "🌐 Choose language / Выберите язык / Ընտրեք լեզուն",
         "language_changed":      "✅ Լեզուն փոխվել է հայերենի։",
 
+        # ── CLUB AUTH ───────────────────────────────────────────────────────
+        "choose_club":           "👋 Բարի գալուստ! Ընտրեք ձեր ակումբը:",
+        "enter_password":        "🔐 Մուտքագրեք *{club}*-ի գաղտնաբառը:",
+        "wrong_password":        "❌ Սխալ գաղտնաբառ: Խնդրում ենք կրկին փորձել:",
+        "event_reminder_title":  "🎉 Հիշեցում: վաղը հատուկ միջոցառում կա!",
+
         "btn_book_office":       "📅 Ամրագրել ակումբը",
         "btn_view_schedule":     "📊 Դիտել գրաֆիկը",
         "btn_my_bookings":       "📌 Իմ ամրագրումները",
@@ -404,6 +446,18 @@ T: dict[str, dict[str, str]] = {
         "choose_month":          "📅 Քայլ 1 4-ից — Ընտրեք ամիսը:",
         "choose_day":            "📅 *{month}* — ընտրեք օրը:",
         "choose_time":           "📅 {date}\n\n🕐 Քայլ 2 4-ից — Ընտրեք մեկնարկի ժամը:",
+        "choose_start_time":     "🕐 Քայլ 2 4-ից — Ընտրեք մեկնարկի ժամը:",
+        "choose_end_time":       "🕐 Ընտրեք ավարտի ժամը:",
+        "start_label":           "Սկիզբ",
+        "end_before_start_alert":"Ավարտի ժամը պետք է ավելի ուշ լինի, քան սկսելու ժամը։",
+        "btn_type_start_time":   "⌨️ Մուտքագրել մեկնարկի ժամը",
+        "btn_type_end_time":     "⌨️ Մուտքագրել ավարտի ժամը",
+        "btn_suggested_times":   "Առաջարկվող տարբերակներ՝",
+        "prompt_type_start":     "Մուտքագրեք մեկնարկի ժամը *HH:MM* ձևաչափով (օր․ *18:30*):",
+        "prompt_type_end":       "Մուտքագրեք ավարտի ժամը *HH:MM* ձևաչափով (օր․ *20:00*):",
+        "time_parse_error":      "Չհաջողվեց հասկանալ ժամը։ Գրեք HH:MM (օր․ 18:30)։",
+        "time_out_of_range":     "Ժամը դուրս է աշխատանքային ժամերից ({open}–{close})։",
+        "typed_time_normalized": "Կլորացվել է {time} (քայլ {step} րոպե)։",
         "choose_duration":       "📅 {date}  |  🕐 {hour}:00\n\n⏱ Քայլ 3 4-ից — Ընտրեք տևողությունը:",
         "enter_title":           "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ժ\n\n✏️ Քայլ 4 4-ից — Մուտքագրեք անունը: \n\nՕրինակ՝ Սեղանի խաղեր կամ Փոքր խումբ",
         "enter_title_again":     "📅 {date}  |  🕐 {hour}:00  |  ⏱ {duration}ժ\n\n✏️ Քայլ 4 4-ից — Մուտքագրեք անունը: \n\n_Մուտքագրեք միջոցառման անունը_",

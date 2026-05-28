@@ -18,9 +18,9 @@ GROUP_CHAT_ID: int | None = int(_raw_group) if _raw_group.lstrip("-").isdigit() 
 # ── Database ──────────────────────────────────────────────────────────────────
 DATABASE_PATH: str = os.getenv("DATABASE_PATH", "office.db")
 
-# ── Office hours — 24 hours, no restrictions ─────────────────────────────────
-OFFICE_OPEN:  int = 0    # 00:00
-OFFICE_CLOSE: int = 24   # covers full day
+# ── Office hours ──────────────────────────────────────────────────────────────
+OFFICE_OPEN:  int = int(os.getenv("OFFICE_OPEN",  "10"))
+OFFICE_CLOSE: int = int(os.getenv("OFFICE_CLOSE", "22"))
 
 # ── Booking limits ────────────────────────────────────────────────────────────
 MAX_DURATION_HOURS: int = 12
@@ -35,13 +35,58 @@ ADMIN_IDS: list[int] = [
     int(x.strip()) for x in _raw_admins.split(",") if x.strip().isdigit()
 ]
 
+# ── Multi-club configuration ──────────────────────────────────────────────────
+# Maps club_id → {name, env}  where env is the .env variable holding the password.
+CLUBS: dict[str, dict] = {
+    "abovyan":    {"name": "Abovyan",      "password": "Abovyan3.16"},
+    "joyful":     {"name": "Joyful",       "password": "Joyful3.16"},
+    "ararat":     {"name": "Ararat",       "password": "Ararat3.16"},
+    "eghvard":    {"name": "Eghvard",      "password": "Eghvard3.16"},
+    "club36":     {"name": "Club 36",      "password": "Club 363.16"},
+    "davtashen":  {"name": "Davtashen",    "password": "Davtashen3.16"},
+    "mix":        {"name": "Mix",          "password": "Mix3.16"},
+    "kievyan":    {"name": "Kievyan",      "password": "Kievyan3.16"},
+    "monument":   {"name": "Monument",     "password": "Monument3.16"},
+    "shengavit":  {"name": "Shengavit",    "password": "Shengavit3.16"},
+    "hrazdan":    {"name": "Hrazdan",      "password": "Hrazdan3.16"},
+    "avan":       {"name": "Avan",         "password": "Avan3.16"},
+    "unity":      {"name": "Unity",        "password": "Unity3.16"},
+    "kvartall":   {"name": "Kvartall",     "password": "Kvartall3.16"},
+    "revive":     {"name": "Revive",       "password": "Revive3.16"},
+    "centerclub": {"name": "Center Club",  "password": "Center Club3.16"},
+    "stage":      {"name": "Stage",        "password": "Stage3.16"},
+}
+
+
+def verify_club_password(club_id: str, entered: str) -> bool:
+    """Return True if entered matches the club's password."""
+    club = CLUBS.get(club_id)
+    if not club:
+        return False
+    return entered == club["password"]
+
+
+def get_club_name(club_id: str) -> str:
+    """Return the display name for a club_id, or the raw id if unknown."""
+    club = CLUBS.get(club_id)
+    return club["name"] if club else club_id
+
+
 # ── ConversationHandler states ────────────────────────────────────────────────
 (
-    STATE_PICK_DATE,
-    STATE_PICK_HOUR,
-    STATE_PICK_DURATION,
-    STATE_ENTER_TITLE,
-    STATE_CONFIRM,
-    STATE_EDIT_PICK_FIELD,
-    STATE_EDIT_ENTER_VALUE,
-) = range(7)
+    STATE_PICK_DATE,          # 0
+    STATE_PICK_HOUR,          # 1
+    STATE_PICK_START_MINUTE,  # 2
+    STATE_PICK_END_HOUR,      # 3
+    STATE_PICK_END_MINUTE,    # 4
+    STATE_ENTER_TITLE,        # 5
+    STATE_CONFIRM,            # 6
+    STATE_EDIT_PICK_FIELD,    # 7
+    STATE_EDIT_ENTER_VALUE,   # 8
+    STATE_PICK_CLUB,          # 9
+    STATE_ENTER_PASSWORD,     # 10
+) = range(11)
+
+# Aliases used by the hybrid slot picker in handlers/booking.py
+STATE_PICK_START = STATE_PICK_HOUR
+STATE_PICK_END   = STATE_PICK_END_HOUR
