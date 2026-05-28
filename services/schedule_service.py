@@ -29,20 +29,19 @@ from translations import WEEKDAY_NAMES, get_text
 
 # ── Weekly schedule ───────────────────────────────────────────────────────────
 
-def build_weekly_schedule(reference_date: date | None = None, lang: str = "en") -> str:
-    """
-    Return a formatted string of the week containing reference_date.
-    Defaults to the current week (Monday–Sunday).
-    """
+def build_weekly_schedule(
+    reference_date: date | None = None,
+    lang: str = "en",
+    club_id: str = "",
+) -> str:
     if reference_date is None:
         reference_date = date.today()
 
     monday = reference_date - timedelta(days=reference_date.weekday())
     sunday = monday + timedelta(days=6)
 
-    bookings = db.get_bookings_for_date_range(monday.isoformat(), sunday.isoformat())
+    bookings = db.get_bookings_for_date_range(monday.isoformat(), sunday.isoformat(), club_id=club_id)
 
-    # Group bookings by date
     by_date: dict[str, list[Booking]] = {}
     for b in bookings:
         by_date.setdefault(b.date, []).append(b)
@@ -52,8 +51,7 @@ def build_weekly_schedule(reference_date: date | None = None, lang: str = "en") 
 
     lines = [f"📅  {monday.strftime('%d.%m')} — {sunday.strftime('%d.%m')}\n"]
 
-    # Fetch special events for this week
-    week_events = db.get_special_events_for_date_range(monday.isoformat(), sunday.isoformat())
+    week_events = db.get_special_events_for_date_range(monday.isoformat(), sunday.isoformat(), club_id=club_id)
     ev_by_date: dict[str, list] = {}
     for ev in week_events:
         parts = ev["event_date"].replace(" ", "").split("–")
@@ -96,7 +94,7 @@ def build_weekly_schedule(reference_date: date | None = None, lang: str = "en") 
                     lines.append(f"   📍 {ev['location']}")
             lines.append("")
         else:
-            free_slots = get_free_slots(d)
+            free_slots = get_free_slots(d, club_id=club_id)
             lines.append(day_header)
             if free_slots:
                 for s, e in free_slots:
@@ -110,14 +108,13 @@ def build_weekly_schedule(reference_date: date | None = None, lang: str = "en") 
 
 # ── Monthly schedule ──────────────────────────────────────────────────────────
 
-def build_monthly_schedule(year: int, month: int, lang: str = "en") -> str:
-    """Return a compact monthly schedule string."""
+def build_monthly_schedule(year: int, month: int, lang: str = "en", club_id: str = "") -> str:
     from calendar import monthrange
 
     first = date(year, month, 1)
     last  = date(year, month, monthrange(year, month)[1])
 
-    bookings = db.get_bookings_for_date_range(first.isoformat(), last.isoformat())
+    bookings = db.get_bookings_for_date_range(first.isoformat(), last.isoformat(), club_id=club_id)
     by_date: dict[str, list[Booking]] = {}
     for b in bookings:
         by_date.setdefault(b.date, []).append(b)
@@ -127,8 +124,7 @@ def build_monthly_schedule(year: int, month: int, lang: str = "en") -> str:
 
     lines = [f"📅  {month_name} {year}\n"]
 
-    # Fetch special events for this month
-    month_events = db.get_special_events_for_date_range(first.isoformat(), last.isoformat())
+    month_events = db.get_special_events_for_date_range(first.isoformat(), last.isoformat(), club_id=club_id)
     mev_by_date: dict[str, list] = {}
     for ev in month_events:
         parts = ev["event_date"].replace(" ", "").split("–")
@@ -176,17 +172,12 @@ def build_monthly_schedule(year: int, month: int, lang: str = "en") -> str:
 
 # ── Free slots ────────────────────────────────────────────────────────────────
 
-def get_free_slots(target_date: date) -> list[tuple[str, str]]:
-    """
-    Return a list of (start_str, end_str) free time windows on target_date,
-    clipped to OFFICE_OPEN – OFFICE_CLOSE.
-    """
-    bookings = db.get_bookings_for_date(target_date.isoformat())
-    # Sort by start time
+def get_free_slots(target_date: date, club_id: str = "") -> list[tuple[str, str]]:
+    bookings = db.get_bookings_for_date(target_date.isoformat(), club_id=club_id)
     bookings.sort(key=lambda b: b.start_time)
 
     free: list[tuple[str, str]] = []
-    cursor = OFFICE_OPEN  # current hour pointer
+    cursor = OFFICE_OPEN
 
     for b in bookings:
         book_start_h = int(b.start_time.split(":")[0])
@@ -201,8 +192,8 @@ def get_free_slots(target_date: date) -> list[tuple[str, str]]:
     return free
 
 
-def format_free_slots(target_date: date) -> str:
-    slots = get_free_slots(target_date)
+def format_free_slots(target_date: date, club_id: str = "") -> str:
+    slots = get_free_slots(target_date, club_id=club_id)
     header = f"🟢 {target_date.strftime('%d.%m')}:\n"
     if not slots:
         return header + "_No free time available._"
@@ -211,7 +202,6 @@ def format_free_slots(target_date: date) -> str:
 
 
 def _date_in_event_range_str(date_str: str, event_date: str) -> bool:
-    """Check if a date string falls within an event's date range."""
     try:
         from datetime import date as _d
         parts = event_date.replace(" ", "").split("–")

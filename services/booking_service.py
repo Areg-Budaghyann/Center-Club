@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 def find_conflict(
     date: str,
     start_time: str,
-    duration: int,
+    duration: float,
+    club_id: str = "",
     exclude_id: Optional[int] = None,
 ) -> Optional[Booking]:
     """
@@ -30,7 +31,6 @@ def find_conflict(
 
     exclude_id: skip this booking id (used when editing an existing booking).
     """
-    # Build a temporary Booking to use its .overlaps() helper
     candidate = Booking(
         id=0,
         user_id=0,
@@ -41,7 +41,7 @@ def find_conflict(
         duration=duration,
         created_at="",
     )
-    existing = db.get_bookings_for_date(date)
+    existing = db.get_bookings_for_date(date, club_id=club_id)
     for b in existing:
         if b.id == exclude_id:
             continue
@@ -58,19 +58,20 @@ def create_booking(
     title: str,
     date: str,
     start_time: str,
-    duration: int,
+    duration: float,
+    club_id: str = "",
 ) -> tuple[Booking | None, Booking | None]:
     """
     Try to create a booking.
     Returns (new_booking, None) on success.
     Returns (None, conflicting_booking) on conflict.
     """
-    conflict = find_conflict(date, start_time, duration)
+    conflict = find_conflict(date, start_time, duration, club_id=club_id)
     if conflict:
         logger.info("Booking rejected — conflict with id=%d", conflict.id)
         return None, conflict
 
-    new_booking = db.create_booking(user_id, username, title, date, start_time, duration)
+    new_booking = db.create_booking(user_id, username, title, date, start_time, duration, club_id=club_id)
     logger.info("Booking created id=%d by user_id=%d", new_booking.id, user_id)
     return new_booking, None
 
@@ -110,12 +111,15 @@ def edit_booking(
     if booking.user_id != requesting_user_id:
         return None, "You can only edit your own bookings."
 
-    # Merge proposed changes with current values for conflict check
     new_date       = fields.get("date",       booking.date)
     new_start_time = fields.get("start_time", booking.start_time)
     new_duration   = fields.get("duration",   booking.duration)
 
-    conflict = find_conflict(new_date, new_start_time, new_duration, exclude_id=booking_id)
+    conflict = find_conflict(
+        new_date, new_start_time, new_duration,
+        club_id=booking.club_id,
+        exclude_id=booking_id,
+    )
     if conflict:
         return None, (
             f"Time conflict with an existing booking:\n"

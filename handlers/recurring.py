@@ -296,6 +296,7 @@ async def confirm_recurring(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         end_time   = RECURRING_END_DISPLAY,
         from_date  = ud["rec_from_date"],
         to_date    = ud["rec_to_date"],
+        club_id    = ud.get("club_id", ""),
     )
 
     lines = [f"🎉 *{len(created)} recurring bookings created!*\n"]
@@ -315,7 +316,11 @@ async def confirm_recurring(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         ]),
     )
 
-    lang = context.user_data.get("lang"); context.user_data.clear(); context.user_data["lang"] = lang
+    lang    = context.user_data.get("lang")
+    club_id = context.user_data.get("club_id", "")
+    context.user_data.clear()
+    context.user_data["lang"]    = lang
+    context.user_data["club_id"] = club_id
     return ConversationHandler.END
 
 
@@ -326,8 +331,11 @@ async def confirm_recurring(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def rec_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-    lang = _lang(context)
-    lang = context.user_data.get("lang"); context.user_data.clear(); context.user_data["lang"] = lang
+    lang    = context.user_data.get("lang")
+    club_id = context.user_data.get("club_id", "")
+    context.user_data.clear()
+    context.user_data["lang"]    = lang
+    context.user_data["club_id"] = club_id
     await query.edit_message_text(
         "Recurring booking cancelled.",
         reply_markup=InlineKeyboardMarkup([

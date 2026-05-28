@@ -308,8 +308,10 @@ async def edit_enter_value(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 text=get_text(lang, "edit_failed", reason=reason),
                 reply_markup=_back_menu(lang),
             )
-    lang = context.user_data.get("lang", "en")
-    context.user_data["lang"] = lang
+    lang    = context.user_data.get("lang", "en")
+    club_id = context.user_data.get("club_id", "")
+    context.user_data["lang"]    = lang
+    context.user_data["club_id"] = club_id
     return ConversationHandler.END
 
 
@@ -344,8 +346,10 @@ async def edit_inline_value(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             get_text(lang, "edit_failed", reason=reason),
             reply_markup=_back_menu(lang),
         )
-    lang = context.user_data.get("lang", "en")
-    context.user_data["lang"] = lang
+    lang    = context.user_data.get("lang", "en")
+    club_id = context.user_data.get("club_id", "")
+    context.user_data["lang"]    = lang
+    context.user_data["club_id"] = club_id
     return ConversationHandler.END
 
 
@@ -356,8 +360,10 @@ async def edit_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     context.user_data.pop("edit_booking_id", None)
     context.user_data.pop("edit_field", None)
     await query.edit_message_text(get_text(lang, "edit_cancelled"), reply_markup=_back_menu(lang))
-    lang = context.user_data.get("lang", "en")
-    context.user_data["lang"] = lang
+    lang    = context.user_data.get("lang", "en")
+    club_id = context.user_data.get("club_id", "")
+    context.user_data["lang"]    = lang
+    context.user_data["club_id"] = club_id
     return ConversationHandler.END
 
 
