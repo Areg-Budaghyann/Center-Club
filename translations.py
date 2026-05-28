@@ -48,9 +48,15 @@ T: dict[str, dict[str, str]] = {
     "en": {
 
         # ── START & MAIN MENU ───────────────────────────────────────────────
-        "start_message":         "Below you can find all the features available in this bot 📋\n\nIf you have any questions, press the “Help” button ℹ️\n\nPlan your time wisely ⏰✨",
+        "start_message":         "Below you can find all the features available in this bot 📋\n\nIf you have any questions, press the \"Help\" button ℹ️\n\nPlan your time wisely ⏰✨",
         "choose_language":       "🌐 Choose language / Выберите язык / Ընտրեք լեզուն",
         "language_changed":      "✅ Language set to English.",
+
+        # ── CLUB AUTH ───────────────────────────────────────────────────────
+        "choose_club":           "👋 Welcome! Please choose your club:",
+        "enter_password":        "🔐 Enter the password for *{club}*:",
+        "wrong_password":        "❌ Wrong password. Please try again.",
+        "event_reminder_title":  "🎉 Reminder: special event tomorrow!",
 
         # ── MAIN MENU BUTTONS ───────────────────────────────────────────────
         "btn_book_office":       "📅 Book club",
@@ -220,7 +226,7 @@ T: dict[str, dict[str, str]] = {
         # ── Upcoming events ──────────────────────────────────────────────
         "events_title": "🎉 Upcoming special events",
         "events_empty": "🎉 No upcoming special events.",
-        "update_notification": "🔔 Update\n\nA new section “Special Events” has been added to the bot 📅\n\nIn this section, you can view special events.\nOnly admins can create, edit, or delete events.\n\nThank you for using the bot 🙌",
+        "update_notification": "🔔 Update\n\nA new section \"Special Events\" has been added to the bot 📅\n\nIn this section, you can view special events.\nOnly admins can create, edit, or delete events.\n\nThank you for using the bot 🙌",
 
         "ev_add_btn":      "➕ Add event",
         "ev_edit_btn":     "✏️ Edit event",
@@ -246,6 +252,12 @@ T: dict[str, dict[str, str]] = {
         "start_message":         "Ниже представлены все возможности этого бота 📋\n\nЕсли у вас возникнут вопросы, нажмите кнопку «Помощь» ℹ️\n\nПланируйте своё время с умом ⏰✨",
         "choose_language":       "🌐 Choose language / Выберите язык / Ընտրեք լեզուն",
         "language_changed":      "✅ Язык изменён на Русский.",
+
+        # ── CLUB AUTH ───────────────────────────────────────────────────────
+        "choose_club":           "👋 Добро пожаловать! Пожалуйста, выберите ваш клуб:",
+        "enter_password":        "🔐 Введите пароль для *{club}*:",
+        "wrong_password":        "❌ Неверный пароль. Попробуйте снова.",
+        "event_reminder_title":  "🎉 Напоминание: завтра специальное мероприятие!",
 
         "btn_book_office":       "📅 Забронировать клуб",
         "btn_view_schedule":     "📊 Расписание",
@@ -407,6 +419,12 @@ T: dict[str, dict[str, str]] = {
         "start_message": "Ներքևում կարող եք տեսնել այս բոտի բոլոր հնարավորությունները 📋 \n\nԵթե ունեք հարցեր, սեղմեք «Օգնություն» կոճակը ℹ️ \n\nՊլանավորեք ձեր ժամանակը խելամտորեն ⏰✨",
         "choose_language":       "🌐 Choose language / Выберите язык / Ընտրեք լեզուն",
         "language_changed":      "✅ Լեզուն փոխվել է հայերենի։",
+
+        # ── CLUB AUTH ───────────────────────────────────────────────────────
+        "choose_club":           "👋 Բարի գալուստ! Ընտրեք ձեր ակումբը:",
+        "enter_password":        "🔐 Մուտքագրեք *{club}*-ի գաղտնաբառը:",
+        "wrong_password":        "❌ Սխալ գաղտնաբառ: Խնդրում ենք կրկին փորձել:",
+        "event_reminder_title":  "🎉 Հիշեցում: վաղը հատուկ միջոցառում կա!",
 
         "btn_book_office":       "📅 Ամրագրել ակումբը",
         "btn_view_schedule":     "📊 Դիտել գրաֆիկը",

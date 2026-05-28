@@ -41,6 +41,9 @@ PAGE_SIZE = 24                  # must be multiple of 4 (keyboard columns)
 def _lang(context) -> str:
     return context.user_data.get("lang", "en")
 
+def _club(context) -> str:
+    return context.user_data.get("club_id", "")
+
 
 def _display_name(user) -> str:
     if user.username:
@@ -72,14 +75,14 @@ def _all_slots() -> list[int]:
     return list(range(start, end, SLOT_STEP_MIN))
 
 
-def _booked_minutes(chosen_date: str) -> set[int]:
+def _booked_minutes(chosen_date: str, club_id: str = "") -> set[int]:
     """
     Return set of slot start minutes (aligned to SLOT_STEP_MIN) that are occupied
     by existing bookings on chosen_date.
     """
     import database
     booked: set[int] = set()
-    for b in database.get_bookings_for_date(chosen_date):
+    for b in database.get_bookings_for_date(chosen_date, club_id=club_id):
         bs = _time_to_min(b.start_time)
         be = _time_to_min(b.end_time)
         # Align down to slot boundary; keep end exclusive.
@@ -125,11 +128,11 @@ def _within_office(m: int) -> bool:
     return _office_open_min() <= m < _office_close_min()
 
 
-def _next_free_start_suggestions(chosen_date: str, from_min: int, limit: int = 5) -> list[int]:
+def _next_free_start_suggestions(chosen_date: str, from_min: int, limit: int = 5, club_id: str = "") -> list[int]:
     """
     Suggest next available start slot minutes (slot-aligned) after from_min.
     """
-    booked = _booked_minutes(chosen_date)
+    booked = _booked_minutes(chosen_date, club_id=club_id)
     cur = _normalize_minute(from_min, SLOT_STEP_MIN)
     suggestions: list[int] = []
     for _ in range(0, 24 * 60 // SLOT_STEP_MIN):
@@ -173,11 +176,11 @@ async def _typed_error_prompt(
             pass
 
 
-def _booked_ranges(chosen_date: str) -> list:
+def _booked_ranges(chosen_date: str, club_id: str = "") -> list:
     """Return list of (start_min, end_min) for existing bookings."""
     import database
     ranges = []
-    for b in database.get_bookings_for_date(chosen_date):
+    for b in database.get_bookings_for_date(chosen_date, club_id=club_id):
         ranges.append((_time_to_min(b.start_time), _time_to_min(b.end_time)))
     return ranges
 
@@ -192,9 +195,9 @@ def _hour_available(hour: int, chosen_date: str, booked: list) -> bool:
     return True
 
 
-def _kb_hours(chosen_date: str, lang: str) -> InlineKeyboardMarkup:
+def _kb_hours(chosen_date: str, lang: str, club_id: str = "") -> InlineKeyboardMarkup:
     """Show all 24 hours in a 4-column grid. Lock fully-booked hours."""
-    booked = _booked_ranges(chosen_date)
+    booked = _booked_ranges(chosen_date, club_id=club_id)
     rows, row = [], []
     for h in range(OFFICE_OPEN, OFFICE_CLOSE):
         label = f"{h:02d}:xx"
@@ -212,9 +215,9 @@ def _kb_hours(chosen_date: str, lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
-def _kb_minutes(hour: int, chosen_date: str, lang: str) -> InlineKeyboardMarkup:
+def _kb_minutes(hour: int, chosen_date: str, lang: str, club_id: str = "") -> InlineKeyboardMarkup:
     """Show minute options for chosen hour. Lock conflicting minutes."""
-    booked = _booked_ranges(chosen_date)
+    booked = _booked_ranges(chosen_date, club_id=club_id)
     row = []
     for m in MINUTE_STEPS:
         slot_min = hour * 60 + m
@@ -231,9 +234,9 @@ def _kb_minutes(hour: int, chosen_date: str, lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
-def _kb_end_hours(chosen_date: str, start_min: int, lang: str) -> InlineKeyboardMarkup:
+def _kb_end_hours(chosen_date: str, start_min: int, lang: str, club_id: str = "") -> InlineKeyboardMarkup:
     """Hour grid for end time — only shows hours after start."""
-    booked = _booked_ranges(chosen_date)
+    booked = _booked_ranges(chosen_date, club_id=club_id)
     start_hour = start_min // 60
 
     # Find first blocking booking after start
@@ -261,9 +264,9 @@ def _kb_end_hours(chosen_date: str, start_min: int, lang: str) -> InlineKeyboard
     return InlineKeyboardMarkup(rows)
 
 
-def _kb_end_minutes(hour: int, chosen_date: str, start_min: int, lang: str) -> InlineKeyboardMarkup:
+def _kb_end_minutes(hour: int, chosen_date: str, start_min: int, lang: str, club_id: str = "") -> InlineKeyboardMarkup:
     """Minute options for end time. Only shows times strictly after start."""
-    booked = _booked_ranges(chosen_date)
+    booked = _booked_ranges(chosen_date, club_id=club_id)
     row = []
     for m in MINUTE_STEPS:
         slot_min = hour * 60 + m
@@ -284,10 +287,10 @@ def _kb_end_minutes(hour: int, chosen_date: str, start_min: int, lang: str) -> I
 
 
 
-def _has_conflict_range(date_str: str, start_min: int, end_min: int, exclude_id=None):
+def _has_conflict_range(date_str: str, start_min: int, end_min: int, exclude_id=None, club_id: str = ""):
     """Return conflicting booking or None."""
     import database
-    for b in database.get_bookings_for_date(date_str):
+    for b in database.get_bookings_for_date(date_str, club_id=club_id):
         if exclude_id and b.id == exclude_id:
             continue
         bs = _time_to_min(b.start_time)
@@ -314,7 +317,7 @@ def _kb_month(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
-def _kb_day(year: int, month: int, lang: str):
+def _kb_day(year: int, month: int, lang: str, club_id: str = ""):
     today       = date.today()
     month_label = f"{MONTH_SHORT[lang][month - 1]} {year}"
     headers     = WEEKDAY_HEADERS.get(lang, WEEKDAY_HEADERS["en"])
@@ -323,7 +326,7 @@ def _kb_day(year: int, month: int, lang: str):
     # Get event dates for this month
     try:
         import database as _db
-        event_dicts = _db.get_special_events_for_month(year, month)
+        event_dicts = _db.get_special_events_for_month(year, month, club_id=club_id)
         event_dates = set()
         for ev in event_dicts:
             parts = ev["event_date"].replace(" ", "").split("–")
@@ -365,13 +368,13 @@ def _kb_day(year: int, month: int, lang: str):
     return InlineKeyboardMarkup(rows), month_label
 
 
-def _kb_start_slots(chosen_date: str, page: int, lang: str) -> tuple[InlineKeyboardMarkup, str]:
+def _kb_start_slots(chosen_date: str, page: int, lang: str, club_id: str = "") -> tuple[InlineKeyboardMarkup, str]:
     """
     Paginated start-time slot picker.
     Returns (keyboard, header_text).
     """
     all_slots  = _all_slots()
-    booked     = _booked_minutes(chosen_date)
+    booked     = _booked_minutes(chosen_date, club_id=club_id)
     total_pages = max(1, (len(all_slots) + PAGE_SIZE - 1) // PAGE_SIZE)
     page       = max(0, min(page, total_pages - 1))
 
@@ -420,7 +423,7 @@ def _kb_start_slots(chosen_date: str, page: int, lang: str) -> tuple[InlineKeybo
     return InlineKeyboardMarkup(rows), header
 
 
-def _kb_end_slots(chosen_date: str, start_min: int, page: int, lang: str) -> tuple[InlineKeyboardMarkup, str]:
+def _kb_end_slots(chosen_date: str, start_min: int, page: int, lang: str, club_id: str = "") -> tuple[InlineKeyboardMarkup, str]:
     """
     Paginated end-time slot picker.
     Only shows times strictly after start_min.
@@ -428,7 +431,7 @@ def _kb_end_slots(chosen_date: str, start_min: int, page: int, lang: str) -> tup
     """
     import database
     all_slots   = [s for s in _all_slots() if s > start_min]
-    booked_raw  = database.get_bookings_for_date(chosen_date)
+    booked_raw  = database.get_bookings_for_date(chosen_date, club_id=club_id)
 
     # Find the first conflicting booking after start — cap end slots there
     first_block = None
@@ -501,11 +504,12 @@ def _kb_menu(lang: str) -> InlineKeyboardMarkup:
 async def book_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-    lang = _lang(context)
-    menu_msg_id = context.bot_data.get("menu_msgs", {}).get(update.effective_user.id)
+    lang    = _lang(context)
+    club_id = context.user_data.get("club_id", "")
     await _clear_notifications(context.bot, update.effective_user.id, context)
     context.user_data.clear()
-    context.user_data["lang"] = lang
+    context.user_data["lang"]    = lang
+    context.user_data["club_id"] = club_id
 
     await query.edit_message_text(
         get_text(lang, "choose_month"),
@@ -522,7 +526,7 @@ async def pick_month(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     lang = _lang(context)
     context.user_data["cal_year"]  = year
     context.user_data["cal_month"] = month
-    keyboard, month_label = _kb_day(year, month, lang)
+    keyboard, month_label = _kb_day(year, month, lang, club_id=_club(context))
     await query.edit_message_text(
         f"📅 {month_label}",
         reply_markup=keyboard,
@@ -551,7 +555,8 @@ async def pick_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["_state"] = STATE_PICK_START
 
     # Jump to first available page
-    booked = _booked_minutes(chosen_date)
+    club_id = _club(context)
+    booked = _booked_minutes(chosen_date, club_id=club_id)
     all_s  = _all_slots()
     # Find page that has at least one free slot
     page = 0
@@ -564,12 +569,12 @@ async def pick_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                 break
 
     context.user_data["start_page"] = page
-    kb, header = _kb_start_slots(chosen_date, page, lang)
+    kb, header = _kb_start_slots(chosen_date, page, lang, club_id=club_id)
 
     # Show special events notice if any
     try:
         import database as _db2
-        day_events = [e for e in _db2.get_all_special_events()
+        day_events = [e for e in _db2.get_all_special_events(club_id=club_id)
                       if _date_in_event_range(chosen_date, e["event_date"])]
         event_notice = ""
         if day_events:
@@ -615,7 +620,7 @@ async def back_to_start_picker(update: Update, context: ContextTypes.DEFAULT_TYP
     if not chosen_date:
         await query.edit_message_text(get_text(lang, "choose_month"), reply_markup=_kb_month(lang))
         return STATE_PICK_DATE
-    kb, header = _kb_start_slots(chosen_date, page, lang)
+    kb, header = _kb_start_slots(chosen_date, page, lang, club_id=_club(context))
     await query.edit_message_text(
         f"📅 {chosen_date}\n\n{header}\n\n{get_text(lang, 'choose_start_time')}",
         reply_markup=kb,
@@ -701,9 +706,9 @@ async def on_typed_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             return STATE_PICK_DATE
 
         # Reject if slot is already booked (at slot granularity)
-        booked = _booked_minutes(chosen_date)
+        booked = _booked_minutes(chosen_date, club_id=_club(context))
         if normalized in booked:
-            sugg = _next_free_start_suggestions(chosen_date, normalized + SLOT_STEP_MIN, limit=5)
+            sugg = _next_free_start_suggestions(chosen_date, normalized + SLOT_STEP_MIN, limit=5, club_id=_club(context))
             if sugg:
                 rows = [[InlineKeyboardButton(get_text(lang, "btn_suggested_times"), callback_data="cal_noop")]]
                 row = []
@@ -746,7 +751,7 @@ async def on_typed_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         context.user_data["start_time"] = _min_to_time(normalized)
         context.user_data.pop("awaiting_typed", None)
 
-        kb = _kb_end_hours(chosen_date, normalized, lang)
+        kb = _kb_end_hours(chosen_date, normalized, lang, club_id=_club(context))
         msg = (get_text(lang, "start_label") + ": " + context.user_data["start_time"]
                + chr(10) + chr(10) + get_text(lang, "choose_end_time"))
 
@@ -795,7 +800,7 @@ async def on_typed_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
                 await q.answer(get_text(lang, "end_before_start_alert"), show_alert=True)
         return STATE_PICK_END
 
-    conflict = _has_conflict_range(chosen_date, start_min, end_min)
+    conflict = _has_conflict_range(chosen_date, start_min, end_min, club_id=_club(context))
     if conflict:
         cap = _time_to_min(conflict.start_time)
         cap = min(cap, _office_close_min())
@@ -883,7 +888,7 @@ async def back_to_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     year  = context.user_data.get("cal_year")
     month = context.user_data.get("cal_month")
     if year and month:
-        keyboard, month_label = _kb_day(year, month, lang)
+        keyboard, month_label = _kb_day(year, month, lang, club_id=_club(context))
         await query.edit_message_text(f"📅 {month_label}", reply_markup=keyboard)
     else:
         await query.edit_message_text(get_text(lang, "choose_month"), reply_markup=_kb_month(lang))
@@ -913,7 +918,7 @@ async def start_page(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["start_page"] = page
     context.user_data["_state"] = STATE_PICK_START
 
-    kb, header = _kb_start_slots(chosen_date, page, lang)
+    kb, header = _kb_start_slots(chosen_date, page, lang, club_id=_club(context))
     await query.edit_message_text(
         f"📅 {chosen_date}\n\n{header}\n\n{get_text(lang, 'choose_start_time')}",
         reply_markup=kb,
@@ -930,7 +935,7 @@ async def pick_hour_start(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     hour        = int(query.data.split(":")[1])
     chosen_date = context.user_data["date"]
     context.user_data["pending_hour"] = hour
-    kb = _kb_minutes(hour, chosen_date, lang)
+    kb = _kb_minutes(hour, chosen_date, lang, club_id=_club(context))
     await query.edit_message_text(
         get_text(lang, "choose_start_time") + " " + str(hour).zfill(2) + ":__",
         reply_markup=kb,
@@ -944,7 +949,7 @@ async def back_to_hours(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     await query.answer()
     lang        = _lang(context)
     chosen_date = context.user_data["date"]
-    kb = _kb_hours(chosen_date, lang)
+    kb = _kb_hours(chosen_date, lang, club_id=_club(context))
     await query.edit_message_text(
         get_text(lang, "choose_start_time"),
         reply_markup=kb,
@@ -964,7 +969,7 @@ async def pick_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["start_min"]  = start_min
     context.user_data["start_time"] = start_time
     context.user_data["_state"] = STATE_PICK_END
-    kb = _kb_end_hours(chosen_date, start_min, lang)
+    kb = _kb_end_hours(chosen_date, start_min, lang, club_id=_club(context))
     msg = (get_text(lang, "start_label") + ": " + start_time
            + chr(10) + chr(10) + get_text(lang, "choose_end_time"))
     await query.edit_message_text(msg, reply_markup=kb)
@@ -981,7 +986,7 @@ async def pick_hour_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     start_min   = context.user_data["start_min"]
     start_time  = context.user_data["start_time"]
     context.user_data["pending_end_hour"] = hour
-    kb  = _kb_end_minutes(hour, chosen_date, start_min, lang)
+    kb  = _kb_end_minutes(hour, chosen_date, start_min, lang, club_id=_club(context))
     msg = (get_text(lang, "start_label") + ": " + start_time
            + chr(10) + f"{hour:02d}:__ - " + get_text(lang, "choose_end_time"))
     await query.edit_message_text(msg, reply_markup=kb)
@@ -1018,7 +1023,7 @@ async def back_to_end_picker(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.user_data.pop("awaiting_typed", None)
     if not chosen_date or start_min is None or not start_time:
         return STATE_PICK_START
-    kb, header = _kb_end_slots(chosen_date, start_min, page, lang)
+    kb, header = _kb_end_slots(chosen_date, start_min, page, lang, club_id=_club(context))
     await query.edit_message_text(
         f"📅 {chosen_date}\n"
         f"▶️ {get_text(lang, 'start_label')}: {start_time}\n\n"
@@ -1045,7 +1050,7 @@ async def pick_duration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         await query.answer(get_text(lang, "time_out_of_range", open=f"{OFFICE_OPEN:02d}:00", close=f"{OFFICE_CLOSE:02d}:00"), show_alert=True)
         return STATE_PICK_END
 
-    conflict = _has_conflict_range(chosen_date, start_min, end_min)
+    conflict = _has_conflict_range(chosen_date, start_min, end_min, club_id=_club(context))
     if conflict:
         await query.answer(get_text(lang, "slot_taken_alert"), show_alert=True)
         return STATE_PICK_END
@@ -1060,7 +1065,7 @@ async def back_to_end_hours(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     chosen_date = context.user_data["date"]
     start_min   = context.user_data["start_min"]
     start_time  = context.user_data["start_time"]
-    kb  = _kb_end_hours(chosen_date, start_min, lang)
+    kb  = _kb_end_hours(chosen_date, start_min, lang, club_id=_club(context))
     msg = (get_text(lang, "start_label") + ": " + start_time
            + chr(10) + chr(10) + get_text(lang, "choose_end_time"))
     await query.edit_message_text(msg, reply_markup=kb)
@@ -1079,7 +1084,7 @@ async def back_to_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     await query.answer()
     lang        = _lang(context)
     chosen_date = context.user_data["date"]
-    kb = _kb_hours(chosen_date, lang)
+    kb = _kb_hours(chosen_date, lang, club_id=_club(context))
     await query.edit_message_text(get_text(lang, "choose_start_time"), reply_markup=kb)
     return STATE_PICK_START
 
@@ -1096,7 +1101,7 @@ async def end_page(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["end_page"] = page
     context.user_data["_state"] = STATE_PICK_END
 
-    kb, header = _kb_end_slots(chosen_date, start_min, page, lang)
+    kb, header = _kb_end_slots(chosen_date, start_min, page, lang, club_id=_club(context))
     await query.edit_message_text(
         f"📅 {chosen_date}\n"
         f"▶️ {get_text(lang, 'start_label')}: {start_time}\n\n"
@@ -1175,7 +1180,7 @@ async def back_to_end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     start_time  = context.user_data["start_time"]
     page        = context.user_data.get("end_page", 0)
 
-    kb, header = _kb_end_slots(chosen_date, start_min, page, lang)
+    kb, header = _kb_end_slots(chosen_date, start_min, page, lang, club_id=_club(context))
     await query.edit_message_text(
         f"📅 {chosen_date}\n"
         f"▶️ {get_text(lang, 'start_label')}: {start_time}\n\n"
@@ -1279,7 +1284,7 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     dur_min    = end_min - start_min
 
     # Final conflict check
-    conflict = _has_conflict_range(ud["date"], start_min, end_min)
+    conflict = _has_conflict_range(ud["date"], start_min, end_min, club_id=club_id)
     if conflict:
         await query.edit_message_text(
             get_text(lang, "booking_conflict",
@@ -1365,9 +1370,11 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     except Exception:
         pass
 
-    lang = context.user_data.get("lang", "en")
+    lang    = context.user_data.get("lang", "en")
+    club_id = context.user_data.get("club_id", "")
     context.user_data.clear()
-    context.user_data["lang"] = lang
+    context.user_data["lang"]    = lang
+    context.user_data["club_id"] = club_id
     return ConversationHandler.END
 
 
