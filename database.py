@@ -102,7 +102,6 @@ def init_db() -> None:
 
             CREATE INDEX IF NOT EXISTS idx_bookings_date ON bookings(date);
             CREATE INDEX IF NOT EXISTS idx_bookings_user ON bookings(user_id);
-            CREATE INDEX IF NOT EXISTS idx_bookings_club ON bookings(club_id);
 
             CREATE TABLE IF NOT EXISTS reminder_sent (
                 booking_id  INTEGER PRIMARY KEY,
