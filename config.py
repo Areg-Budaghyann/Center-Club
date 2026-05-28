@@ -54,7 +54,7 @@ CLUBS: dict[str, dict] = {
     "unity":      {"name": "Unity",        "password": os.getenv("CLUB_PASSWORD_UNITY",      "Unity3.16")},
     "kvartall":   {"name": "Kvartall",     "password": os.getenv("CLUB_PASSWORD_KVARTALL",   "Kvartall3.16")},
     "revive":     {"name": "Revive",       "password": os.getenv("CLUB_PASSWORD_REVIVE",     "Revive3.16")},
-    "centerclub": {"name": "Center Club",  "password": "Center Club3.16"},
+    "centerclub": {"name": "Center Club",  "password": os.getenv("CLUB_PASSWORD_CENTER_CLUB", "Center Club3.16")},
     "stage":      {"name": "Stage",        "password": os.getenv("CLUB_PASSWORD_STAGE",      "Stage3.16")},
 }
 
