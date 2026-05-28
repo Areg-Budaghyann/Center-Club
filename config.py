@@ -38,33 +38,32 @@ ADMIN_IDS: list[int] = [
 # ── Multi-club configuration ──────────────────────────────────────────────────
 # Maps club_id → {name, env}  where env is the .env variable holding the password.
 CLUBS: dict[str, dict] = {
-    "abovyan":     {"name": "Abovyan",     "env": "CLUB_PASSWORD_ABOVYAN"},
-    "arabkir":     {"name": "Arabkir",     "env": "CLUB_PASSWORD_ARABKIR"},
-    "avan":        {"name": "Avan",        "env": "CLUB_PASSWORD_AVAN"},
-    "davtashen":   {"name": "Davtashen",   "env": "CLUB_PASSWORD_DAVTASHEN"},
-    "erebuni":     {"name": "Erebuni",     "env": "CLUB_PASSWORD_EREBUNI"},
-    "kanaker":     {"name": "Kanaker",     "env": "CLUB_PASSWORD_KANAKER"},
-    "kentron":     {"name": "Kentron",     "env": "CLUB_PASSWORD_KENTRON"},
-    "malatia":     {"name": "Malatia",     "env": "CLUB_PASSWORD_MALATIA"},
-    "nork":        {"name": "Nork",        "env": "CLUB_PASSWORD_NORK"},
-    "norknork":    {"name": "Nork-Marash", "env": "CLUB_PASSWORD_NORKNORK"},
-    "nubarashen":  {"name": "Nubarashen",  "env": "CLUB_PASSWORD_NUBARASHEN"},
-    "shengavit":   {"name": "Shengavit",   "env": "CLUB_PASSWORD_SHENGAVIT"},
-    "vardashen":   {"name": "Vardashen",   "env": "CLUB_PASSWORD_VARDASHEN"},
-    "yerevan":     {"name": "Yerevan",     "env": "CLUB_PASSWORD_YEREVAN"},
-    "ajapnyak":    {"name": "Ajapnyak",    "env": "CLUB_PASSWORD_AJAPNYAK"},
-    "zoravar":     {"name": "Zoravar",     "env": "CLUB_PASSWORD_ZORAVAR"},
-    "mashtots":    {"name": "Mashtots",    "env": "CLUB_PASSWORD_MASHTOTS"},
+    "abovyan":    {"name": "Abovyan",      "password": "Abovyan3.16"},
+    "joyful":     {"name": "Joyful",       "password": "Joyful3.16"},
+    "ararat":     {"name": "Ararat",       "password": "Ararat3.16"},
+    "eghvard":    {"name": "Eghvard",      "password": "Eghvard3.16"},
+    "club36":     {"name": "Club 36",      "password": "Club 363.16"},
+    "davtashen":  {"name": "Davtashen",    "password": "Davtashen3.16"},
+    "mix":        {"name": "Mix",          "password": "Mix3.16"},
+    "kievyan":    {"name": "Kievyan",      "password": "Kievyan3.16"},
+    "monument":   {"name": "Monument",     "password": "Monument3.16"},
+    "shengavit":  {"name": "Shengavit",    "password": "Shengavit3.16"},
+    "hrazdan":    {"name": "Hrazdan",      "password": "Hrazdan3.16"},
+    "avan":       {"name": "Avan",         "password": "Avan3.16"},
+    "unity":      {"name": "Unity",        "password": "Unity3.16"},
+    "kvartall":   {"name": "Kvartall",     "password": "Kvartall3.16"},
+    "revive":     {"name": "Revive",       "password": "Revive3.16"},
+    "centerclub": {"name": "Center Club",  "password": "Center Club3.16"},
+    "stage":      {"name": "Stage",        "password": "Stage3.16"},
 }
 
 
 def verify_club_password(club_id: str, entered: str) -> bool:
-    """Return True if entered matches the club's configured password."""
+    """Return True if entered matches the club's password."""
     club = CLUBS.get(club_id)
     if not club:
         return False
-    expected = os.getenv(club["env"], "")
-    return bool(expected) and entered == expected
+    return entered == club["password"]
 
 
 def get_club_name(club_id: str) -> str:

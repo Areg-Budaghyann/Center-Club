@@ -41,6 +41,12 @@ def _lang(context) -> str:
 def _is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
 
+def _club(context) -> str:
+    return context.user_data.get("club_id", "")
+
+def _can_delete_event(user_id: int, ev: dict) -> bool:
+    return _is_admin(user_id) or ev.get("created_by") == user_id
+
 
 async def _auto_del(bot, chat_id, msg_id, delay=3):
     await asyncio.sleep(delay)
@@ -161,29 +167,30 @@ def _event_block(e: dict) -> str:
     return "\n".join(lines)
 
 
-def _events_view(lang: str, user_id: int) -> tuple[str, InlineKeyboardMarkup]:
-    events = db.get_all_special_events()
+def _events_view(lang: str, user_id: int, club_id: str = "") -> tuple[str, InlineKeyboardMarkup]:
+    events = db.get_all_special_events(club_id=club_id)
     is_admin = _is_admin(user_id)
     menu_btn = [[InlineKeyboardButton(get_text(lang, "btn_menu"), callback_data="menu")]]
 
     if not events:
-        empty_rows = []
-        if is_admin:
-            empty_rows.append([InlineKeyboardButton(get_text(lang, "ev_add_btn"), callback_data="ev_add")])
-        empty_rows += menu_btn
-        return get_text(lang, "events_empty"), InlineKeyboardMarkup(empty_rows)
+        rows = [
+            [InlineKeyboardButton(get_text(lang, "ev_add_btn"), callback_data="ev_add")],
+        ] + menu_btn
+        return get_text(lang, "events_empty"), InlineKeyboardMarkup(rows)
 
     text = get_text(lang, "events_title") + "\n"
-    rows = []
-
     for e in events:
-        text += f"\n            \n{_event_block(e)}\n"
+        text += f"\n━━━━━━━━━━━━━━━━━━━━━━\n{_event_block(e)}\n"
 
+    rows = [
+        [InlineKeyboardButton(get_text(lang, "ev_add_btn"), callback_data="ev_add")],
+    ]
     if is_admin:
-        rows.append([InlineKeyboardButton(get_text(lang, "ev_add_btn"), callback_data="ev_add")])
         rows.append([InlineKeyboardButton(get_text(lang, "ev_edit_btn"), callback_data="ev_edit_list")])
+    # Show delete list if user has any deletable events
+    deletable = [e for e in events if _can_delete_event(user_id, e)]
+    if deletable:
         rows.append([InlineKeyboardButton(get_text(lang, "ev_del_btn"), callback_data="ev_del_list")])
-
     rows += menu_btn
     return text, InlineKeyboardMarkup(rows)
 
@@ -191,23 +198,24 @@ def _events_view(lang: str, user_id: int) -> tuple[str, InlineKeyboardMarkup]:
 async def events_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
-    text, kb = _events_view(_lang(context), update.effective_user.id)
+    text, kb = _events_view(_lang(context), update.effective_user.id, _club(context))
     await query.edit_message_text(text, reply_markup=kb)
 
 
 # ── Delete event ──────────────────────────────────────────────────────────────
 
 async def ev_delask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    lang  = _lang(context)
-    if not _is_admin(update.effective_user.id):
-        await query.answer("⛔ Admin only", show_alert=True); return
+    query   = update.callback_query
+    lang    = _lang(context)
+    user_id = update.effective_user.id
     await query.answer()
     event_id = int(query.data.split(":")[1])
-    events   = db.get_all_special_events()
+    events   = db.get_all_special_events(club_id=_club(context))
     ev       = next((e for e in events if e["id"] == event_id), None)
     if not ev:
         await query.answer("Event not found", show_alert=True); return
+    if not _can_delete_event(user_id, ev):
+        await query.answer("⛔ You can only delete your own events", show_alert=True); return
 
     kb = InlineKeyboardMarkup([[
         InlineKeyboardButton("✅ Yes, delete", callback_data=f"ev_delconfirm:{event_id}"),
@@ -220,14 +228,17 @@ async def ev_delask(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def ev_delconfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    if not _is_admin(update.effective_user.id):
-        await query.answer("⛔ Admin only", show_alert=True); return
+    query   = update.callback_query
+    user_id = update.effective_user.id
     await query.answer()
     event_id = int(query.data.split(":")[1])
+    events   = db.get_all_special_events(club_id=_club(context))
+    ev       = next((e for e in events if e["id"] == event_id), None)
+    if ev and not _can_delete_event(user_id, ev):
+        await query.answer("⛔ You can only delete your own events", show_alert=True); return
     db.delete_special_event(event_id)
     lang = _lang(context)
-    text, kb = _events_view(lang, update.effective_user.id)
+    text, kb = _events_view(lang, user_id, _club(context))
     await query.edit_message_text(text, reply_markup=kb)
 
 
@@ -241,7 +252,7 @@ async def ev_edit_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ConversationHandler.END
     await query.answer()
 
-    events = db.get_all_special_events()
+    events = db.get_all_special_events(club_id=_club(context))
     if not events:
         await query.answer("No events to edit", show_alert=True)
         return ConversationHandler.END
@@ -260,22 +271,21 @@ async def ev_edit_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def ev_del_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    query = update.callback_query
-    lang  = _lang(context)
-    if not _is_admin(update.effective_user.id):
-        await query.answer("⛔ Admin only", show_alert=True)
-        return ConversationHandler.END
+    query   = update.callback_query
+    lang    = _lang(context)
+    user_id = update.effective_user.id
     await query.answer()
 
-    events = db.get_all_special_events()
-    if not events:
+    events    = db.get_all_special_events(club_id=_club(context))
+    deletable = [e for e in events if _can_delete_event(user_id, e)]
+    if not deletable:
         await query.answer("No events to delete", show_alert=True)
         return ConversationHandler.END
 
     rows = [[InlineKeyboardButton(
         f"🎉 {e['title']} ({e['event_date']})",
         callback_data=f"ev_delask:{e['id']}"
-    )] for e in events]
+    )] for e in deletable]
     rows.append([InlineKeyboardButton("← Back", callback_data="events")])
 
     await query.edit_message_text(
@@ -295,7 +305,7 @@ async def ev_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["ev_edit_id"] = event_id
     context.user_data["ev_msg_id"]  = query.message.message_id
 
-    events = db.get_all_special_events()
+    events = db.get_all_special_events(club_id=_club(context))
     ev     = next((e for e in events if e["id"] == event_id), None)
     if not ev:
         await query.answer("Event not found", show_alert=True)
@@ -454,7 +464,7 @@ async def eve_end_day(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     context.user_data["ev_edit_data"]["event_date"] = date_range
 
     lang = _lang(context)
-    text, kb = _events_view(lang, update.effective_user.id)
+    text, kb = _events_view(lang, update.effective_user.id, _club(context))
     await query.edit_message_text(text, reply_markup=kb)
     return ConversationHandler.END
 
@@ -479,7 +489,7 @@ async def eve_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             conn.execute(f"UPDATE special_events SET {col}=? WHERE id=?", (value, event_id))
         context.user_data["ev_edit_data"][col] = value
 
-    text, kb = _events_view(lang, update.effective_user.id)
+    text, kb = _events_view(lang, update.effective_user.id, _club(context))
     try:
         await context.bot.edit_message_text(
             chat_id=update.effective_chat.id, message_id=msg_id,
@@ -499,7 +509,7 @@ async def eve_skip_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         conn.execute("UPDATE special_events SET description='' WHERE id=?", (event_id,))
     context.user_data["ev_edit_data"]["description"] = ""
     lang = _lang(context)
-    text, kb = _events_view(lang, update.effective_user.id)
+    text, kb = _events_view(lang, update.effective_user.id, _club(context))
     await query.edit_message_text(text, reply_markup=kb)
     return ConversationHandler.END
 
@@ -508,9 +518,6 @@ async def eve_skip_desc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 async def ev_add_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
-    if not _is_admin(update.effective_user.id):
-        await query.answer("⛔ Admin only", show_alert=True)
-        return ConversationHandler.END
     await query.answer()
     lang = _lang(context)
 
@@ -527,10 +534,6 @@ async def ev_add_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def addevent_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if not _is_admin(update.effective_user.id):
-        await update.message.reply_text("⛔ Admin only.")
-        return ConversationHandler.END
-
     lang = _lang(context)
     try:
         await update.message.delete()
@@ -791,17 +794,21 @@ async def ev_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = query.message.chat_id
     msg_id  = query.message.message_id
 
+    club_id  = _club(context)
     event_id = db.create_special_event(
         title       = context.user_data["ev_title"],
         event_date  = context.user_data["ev_date"],
         event_time  = "",
         location    = context.user_data["ev_location"],
         description = context.user_data.get("ev_desc", ""),
+        club_id     = club_id,
+        created_by  = user_id,
     )
     logger.info("Special event created id=%d", event_id)
 
     context.user_data.clear()
-    context.user_data["lang"] = lang
+    context.user_data["lang"]    = lang
+    context.user_data["club_id"] = club_id
 
     await query.edit_message_text(get_text(lang, "ev_saved"))
 
@@ -813,7 +820,7 @@ async def ev_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         except Exception:
             pass
         try:
-            text, kb = _events_view(lang, user_id)
+            text, kb = _events_view(lang, user_id, club_id)
             await query.get_bot().send_message(chat_id=chat_id, text=text, reply_markup=kb)
         except Exception:
             pass
@@ -823,14 +830,16 @@ async def ev_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def ev_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    lang = _lang(context)
+    lang    = _lang(context)
+    club_id = _club(context)
     context.user_data.clear()
-    context.user_data["lang"] = lang
+    context.user_data["lang"]    = lang
+    context.user_data["club_id"] = club_id
 
     if update.callback_query:
         await update.callback_query.answer()
         try:
-            text, kb = _events_view(lang, update.effective_user.id)
+            text, kb = _events_view(lang, update.effective_user.id, club_id)
             await update.callback_query.edit_message_text(text, reply_markup=kb)
         except Exception:
             pass
@@ -855,7 +864,7 @@ async def delevents_start(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     except Exception:
         pass
     lang = _lang(context)
-    text, kb = _events_view(lang, update.effective_user.id)
+    text, kb = _events_view(lang, update.effective_user.id, _club(context))
     await update.effective_chat.send_message(text, reply_markup=kb)
 
 

@@ -137,6 +137,16 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             lang = database.get_user_lang(user_id) or "en"
             context.user_data["lang"] = lang
         lang = lang or "en"
+        # Delete old menu message if it exists, then send a fresh one
+        old_menu_id = context.bot_data.get("menu_msgs", {}).get(user_id)
+        if old_menu_id:
+            try:
+                await context.bot.delete_message(
+                    chat_id=update.effective_chat.id, message_id=old_menu_id
+                )
+            except Exception:
+                pass
+            context.bot_data.get("menu_msgs", {}).pop(user_id, None)
         await _show_main_menu(update.effective_chat.id, lang, user_id, context)
         return ConversationHandler.END
 
