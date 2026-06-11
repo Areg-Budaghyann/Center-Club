@@ -20,7 +20,12 @@ from dotenv import load_dotenv
 
 # ── env / paths ────────────────────────────────────────────────────────────────
 ROOT = Path(__file__).parent.parent
-load_dotenv(ROOT / ".env")
+
+# On Render the real env vars are injected by the dashboard — loading .env
+# would silently override them with local test values (e.g. office_test.db).
+# Only load .env when running locally (Render sets the RENDER env var).
+if not os.getenv("RENDER"):
+    load_dotenv(ROOT / ".env")
 
 DATABASE_PATH = os.getenv("DATABASE_PATH", "office_test.db")
 if not os.path.isabs(DATABASE_PATH):
